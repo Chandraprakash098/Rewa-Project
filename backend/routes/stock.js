@@ -4,7 +4,7 @@ const stockController = require('../controllers/stockController');
 const { auth, checkRole } = require('../middleware/auth');
 
 // Middleware to ensure only stock management role can access these routes
-router.use(auth, checkRole('reception'));
+router.use(auth, checkRole('stock'));
 
 // Get stock dashboard - view all products with quantities
 router.get('/dashboard', stockController.getDashboard);
