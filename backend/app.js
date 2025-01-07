@@ -10,6 +10,7 @@ const dispatchRoutes = require('./routes/dispatch');
 const marketingRoutes = require('./routes/marketing');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
 
@@ -23,6 +24,7 @@ if (!fs.existsSync(uploadDir)) {
 connectDB();
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
