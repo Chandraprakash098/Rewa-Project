@@ -3,19 +3,16 @@ const router = express.Router();
 const stockController = require('../controllers/stockController');
 const { auth, checkRole } = require('../middleware/auth');
 
-// Middleware to ensure only stock management role can access these routes
+// Apply authentication and stock role check to all routes
 router.use(auth, checkRole('stock'));
 
-// Get stock dashboard - view all products with quantities
-router.get('/dashboard', stockController.getDashboard);
+// Get all products with quantities
+router.get('/products', stockController.getAllProducts);
 
 // Update product quantity
 router.put('/update-quantity', stockController.updateQuantity);
 
 // Get stock history for a specific product
 router.get('/history/:productId', stockController.getStockHistory);
-
-// Get low stock alerts
-router.get('/low-stock-alerts', stockController.getLowStockAlerts);
 
 module.exports = router;

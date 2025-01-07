@@ -2,21 +2,20 @@ const Stock = require('../models/Stock');
 const Product = require('../models/Product');
 
 class StockController {
-    // Get dashboard view of all products with quantities
-    async getDashboard(req, res) {
+    // Get all products with their quantities
+    async getAllProducts(req, res) {
         try {
-            const stockItems = await Stock.find()
-                .populate('productId', 'name description price image')
-                .sort('productId.name');
+            const products = await Product.find({ isActive: true })
+                .select('name description price quantity image');
             
             res.status(200).json({
                 success: true,
-                data: stockItems
+                data: products
             });
         } catch (error) {
             res.status(500).json({
                 success: false,
-                message: 'Error fetching stock dashboard',
+                message: 'Error fetching products',
                 error: error.message
             });
         }
@@ -26,24 +25,61 @@ class StockController {
     async updateQuantity(req, res) {
         try {
             const { productId, quantity, changeType, notes } = req.body;
-            const userId = req.user.id; // Assuming user info is attached to req by auth middleware
+            const userId = req.user.id;
 
-            let stock = await Stock.findOne({ productId });
+            const product = await Product.findById(productId);
             
-            if (!stock) {
+            if (!product) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Stock record not found for this product'
+                    message: 'Product not found'
                 });
             }
 
-            // Update the stock quantity
-            stock.updateQuantity(quantity, userId, changeType, notes);
-            await stock.save();
+            // Calculate new quantity based on change type
+            let newQuantity = product.quantity;
+            if (changeType === 'addition') {
+                newQuantity += parseInt(quantity);
+            } else if (changeType === 'reduction') {
+                newQuantity -= parseInt(quantity);
+                if (newQuantity < 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Insufficient stock quantity'
+                    });
+                }
+            } else {
+                newQuantity = parseInt(quantity); // Direct adjustment
+            }
+
+            // Update product quantity
+            product.quantity = newQuantity;
+            await product.save();
+
+            // Record stock update history
+            const stockUpdate = await Stock.findOneAndUpdate(
+                { productId },
+                {
+                    $set: { quantity: newQuantity, updatedBy: userId },
+                    $push: {
+                        updateHistory: {
+                            quantity: newQuantity,
+                            updatedAt: new Date(),
+                            updatedBy: userId,
+                            changeType,
+                            notes
+                        }
+                    }
+                },
+                { upsert: true, new: true }
+            );
 
             res.status(200).json({
                 success: true,
-                data: stock,
+                data: {
+                    product,
+                    stockUpdate
+                },
                 message: 'Stock quantity updated successfully'
             });
         } catch (error) {
@@ -55,49 +91,29 @@ class StockController {
         }
     }
 
-    // Get stock history for a product
+    // Get stock update history for a product
     async getStockHistory(req, res) {
         try {
             const { productId } = req.params;
-            const stock = await Stock.findOne({ productId })
-                .populate('updateHistory.updatedBy', 'name');
+            const stockHistory = await Stock.findOne({ productId })
+                .populate('updateHistory.updatedBy', 'name')
+                .populate('productId', 'name');
 
-            if (!stock) {
+            if (!stockHistory) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Stock history not found for this product'
+                    message: 'No stock history found for this product'
                 });
             }
 
             res.status(200).json({
                 success: true,
-                data: stock.updateHistory
+                data: stockHistory
             });
         } catch (error) {
             res.status(500).json({
                 success: false,
                 message: 'Error fetching stock history',
-                error: error.message
-            });
-        }
-    }
-
-    // Get low stock alerts
-    async getLowStockAlerts(req, res) {
-        try {
-            const threshold = req.query.threshold || 10; // Default threshold of 10 units
-            
-            const lowStockItems = await Stock.find({ quantity: { $lte: threshold } })
-                .populate('productId', 'name description price');
-
-            res.status(200).json({
-                success: true,
-                data: lowStockItems
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: 'Error fetching low stock alerts',
                 error: error.message
             });
         }
