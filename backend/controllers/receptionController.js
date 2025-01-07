@@ -1,8 +1,25 @@
 const User = require('../models/User');
 const Order = require('../models/Order');
+const fs = require('fs').promises;
+const path = require('path');
+const jwt = require('jsonwebtoken');
+
+
+const generateUserCode = async () => {
+  let userCode;
+  let isUnique = false;
+
+  while (!isUnique) {
+    userCode = `OPT${Math.floor(100000 + Math.random() * 900000)}`; // Example: OPT123456
+    const existingUser = await User.findOne({ 'customerDetails.userCode': userCode });
+    if (!existingUser) {
+      isUnique = true;
+    }
+  }
+  return userCode;
+};
 
 const receptionController = {
-  // User Management
   createCustomer: async (req, res) => {
     try {
       const {
@@ -16,12 +33,49 @@ const receptionController = {
         address
       } = req.body;
 
+      // Validation checks
+      if (!name || !firmName || !phoneNumber || !email || !password || !address) {
+        if (req.file) {
+          await fs.unlink(req.file.path);
+        }
+        return res.status(400).json({
+          error: 'Missing required fields',
+          details: {
+            name: !name,
+            firmName: !firmName,
+            phoneNumber: !phoneNumber,
+            email: !email,
+            password: !password,
+            address: !address,
+          },
+        });
+      }
+
       // Check if email already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
+        if (req.file) {
+          await fs.unlink(req.file.path);
+        }
         return res.status(400).json({ error: 'Email already registered' });
       }
 
+      // Generate unique user code
+      const userCode = await generateUserCode();
+
+      // Process photo if uploaded
+      let photoUrl = null;
+      if (req.file) {
+        photoUrl = `/uploads/profile-photos/${req.file.filename}`;
+        try {
+          await fs.access(path.join(__dirname, '..', 'uploads/profile-photos', req.file.filename));
+        } catch (err) {
+          console.error('File access error:', err);
+          return res.status(500).json({ error: 'File upload failed' });
+        }
+      }
+
+      // Create new user
       const user = new User({
         name,
         email,
@@ -32,15 +86,18 @@ const receptionController = {
           firmName,
           gstNumber,
           panNumber,
-          address
+          address,
+          photo: photoUrl,
+          userCode
         }
       });
 
-      if (req.file) {
-        user.customerDetails.photo = req.file.path;
-      }
-
       await user.save();
+
+      // Generate JWT token for immediate login if needed
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+        expiresIn: '7d'
+      });
 
       // Remove password from response
       const userResponse = user.toObject();
@@ -48,13 +105,21 @@ const receptionController = {
 
       res.status(201).json({ 
         message: 'Customer registered successfully',
-        user: userResponse
+        user: userResponse,
+        token,
+        userCode: user.customerDetails.userCode
       });
     } catch (error) {
-      res.status(500).json({ error: 'Error creating customer' });
+      console.error('Registration error:', error);
+      if (req.file) {
+        await fs.unlink(req.file.path).catch(console.error);
+      }
+      res.status(500).json({ 
+        error: 'Error creating customer',
+        details: error.message 
+      });
     }
   },
-
   // Order Management
   getCurrentOrders: async (req, res) => {
     try {
