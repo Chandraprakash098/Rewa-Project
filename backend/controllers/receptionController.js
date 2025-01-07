@@ -10,7 +10,7 @@ const generateUserCode = async () => {
   let isUnique = false;
 
   while (!isUnique) {
-    userCode = `OPT${Math.floor(100000 + Math.random() * 900000)}`; // Example: OPT123456
+    userCode = `USER-${Math.floor(100000 + Math.random() * 900000)}`; // Example: OPT123456
     const existingUser = await User.findOne({ 'customerDetails.userCode': userCode });
     if (!existingUser) {
       isUnique = true;
