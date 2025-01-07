@@ -36,7 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/reception', receptionRoutes);
-// app.use('/api/stock', stockRoutes);
+app.use('/api/stock', stockRoutes);
 // app.use('/api/dispatch', dispatchRoutes);
 // app.use('/api/marketing', marketingRoutes);
 
