@@ -1,3 +1,4 @@
+const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
@@ -27,25 +28,98 @@ const adminController = {
     }
   },
 
-  // Product Management
-  createProduct: async (req, res) => {
-    try {
-      const { name, description, price, quantity, isOffer, offerPrice } = req.body;
-      const image = req.file ? req.file.path : null;
+  // // Product Management
+  // createProduct: async (req, res) => {
+  //   try {
+  //     const { name, description, price, quantity, isOffer, offerPrice } = req.body;
+  //     const image = req.file ? req.file.path : null;
 
+  //     const product = new Product({
+  //       name,
+  //       description,
+  //       price,
+  //       quantity,
+  //       image,
+  //       isOffer,
+  //       offerPrice
+  //     });
+
+  //     await product.save();
+  //     res.status(201).json({ product });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error creating product' });
+  //   }
+  // },
+
+  // updateProduct: async (req, res) => {
+  //   try {
+  //     const updates = req.body;
+  //     if (req.file) {
+  //       updates.image = req.file.path;
+  //     }
+
+  //     const product = await Product.findByIdAndUpdate(
+  //       req.params.productId,
+  //       updates,
+  //       { new: true }
+  //     );
+
+  //     if (!product) return res.status(404).json({ error: 'Product not found' });
+  //     res.json({ product });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error updating product' });
+  //   }
+  // },
+
+  createProduct : async (req, res) => {
+    try {
+      console.log("File received:", req.file);
+      console.log("Request body:", req.body);
+  
+      const { name, description, price, quantity, isOffer, offerPrice } = req.body;
+      let imageUrl = null;
+  
+      if (req.file) {
+        try {
+          // Read the file from disk
+          const imageBuffer = require('fs').readFileSync(req.file.path);
+          const b64 = Buffer.from(imageBuffer).toString('base64');
+          const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  
+          console.log("Attempting Cloudinary upload...");
+  
+          const result = await cloudinary.uploader.upload(dataURI, {
+            folder: 'products',
+            resource_type: 'auto'
+          });
+  
+          console.log("Cloudinary result:", result);
+          imageUrl = result.secure_url;
+  
+          // Clean up: Delete the file from local storage after upload
+          require('fs').unlinkSync(req.file.path);
+        } catch (uploadError) {
+          console.error('Cloudinary upload error:', uploadError);
+          return res.status(500).json({ error: 'Error uploading image' });
+        }
+      } else {
+        console.log("No file received in request");
+      }
+  
       const product = new Product({
         name,
         description,
         price,
         quantity,
-        image,
+        image: imageUrl,
         isOffer,
         offerPrice
       });
-
+  
       await product.save();
       res.status(201).json({ product });
     } catch (error) {
+      console.error('Error creating product:', error);
       res.status(500).json({ error: 'Error creating product' });
     }
   },
@@ -53,8 +127,26 @@ const adminController = {
   updateProduct: async (req, res) => {
     try {
       const updates = req.body;
+      
       if (req.file) {
-        updates.image = req.file.path;
+        // Convert buffer to base64
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        
+        // Upload to Cloudinary
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: 'products',
+          resource_type: 'auto'
+        });
+        
+        updates.image = result.secure_url;
+        
+        // Optionally: Delete old image from Cloudinary if exists
+        const oldProduct = await Product.findById(req.params.productId);
+        if (oldProduct && oldProduct.image) {
+          const publicId = oldProduct.image.split('/').pop().split('.')[0];
+          await cloudinary.uploader.destroy(`products/${publicId}`);
+        }
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -66,9 +158,11 @@ const adminController = {
       if (!product) return res.status(404).json({ error: 'Product not found' });
       res.json({ product });
     } catch (error) {
+      console.error('Error updating product:', error);
       res.status(500).json({ error: 'Error updating product' });
     }
   },
+
 
   // Order Management
   getAllOrders: async (req, res) => {
