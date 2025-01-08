@@ -37,7 +37,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/reception', receptionRoutes);
 app.use('/api/stock', stockRoutes);
-// app.use('/api/dispatch', dispatchRoutes);
+app.use('/api/dispatch', dispatchRoutes);
 // app.use('/api/marketing', marketingRoutes);
 
 const PORT = process.env.PORT || 5000;
