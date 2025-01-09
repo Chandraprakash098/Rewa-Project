@@ -14,69 +14,38 @@ const userController = {
     }
   },
 
+  // getOffers: async (req, res) => {
+  //   try {
+  //     const offers = await Product.find({ 
+  //       isActive: true, 
+  //       isOffer: true 
+  //     });
+  //     res.json({ offers });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching offers' });
+  //   }
+  // },
+
   getOffers: async (req, res) => {
     try {
       const offers = await Product.find({ 
-        isActive: true, 
-        isOffer: true 
+        isActive: true,
+        discountedPrice: { $exists: true, $ne: null },
+        $expr: { $lt: ["$discountedPrice", "$originalPrice"] }
       });
-      res.json({ offers });
+      
+      res.json({ 
+        offers: offers.map(offer => ({
+          ...offer.toJSON(),
+          discountTag: `${offer.discountPercentage}% OFF`
+        }))
+      });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching offers' });
     }
   },
 
-  // Order Management
-//   createOrder: async (req, res) => {
-//     try {
-//       const { products, paymentMethod } = req.body;
-//       const userId = req.user._id;
 
-//       // Verify and calculate total amount
-//       let totalAmount = 0;
-//       const orderProducts = [];
-
-//       for (const item of products) {
-//         const product = await Product.findById(item.productId);
-//         if (!product) {
-//           return res.status(404).json({ 
-//             error: `Product not found: ${item.productId}` 
-//           });
-//         }
-//         if (product.quantity < item.quantity) {
-//           return res.status(400).json({ 
-//             error: `Insufficient stock for ${product.name}` 
-//           });
-//         }
-
-//         const price = product.isOffer ? product.offerPrice : product.price;
-//         totalAmount += price * item.quantity;
-
-//         orderProducts.push({
-//           product: product._id,
-//           quantity: item.quantity,
-//           price: price
-//         });
-
-//         // Update product quantity
-//         product.quantity -= item.quantity;
-//         await product.save();
-//       }
-
-//       const order = new Order({
-//         user: userId,
-//         products: orderProducts,
-//         totalAmount,
-//         paymentMethod,
-//         paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed'
-//       });
-
-//       await order.save();
-//       res.status(201).json({ order });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error creating order' });
-//     }
-//   },
 
 
 createOrder: async (req, res) => {

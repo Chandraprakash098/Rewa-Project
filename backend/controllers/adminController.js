@@ -1,10 +1,249 @@
+// const cloudinary = require('../config/cloudinary');
+// const User = require('../models/User');
+// const Product = require('../models/Product');
+// const Order = require('../models/Order');
+
+// const adminController = {
+//   // User Management
+//   getAllUsers: async (req, res) => {
+//     try {
+//       const users = await User.find({ role: 'user' }).select('-password');
+//       res.json({ users });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error fetching users' });
+//     }
+//   },
+
+//   toggleUserStatus: async (req, res) => {
+//     try {
+//       const user = await User.findById(req.params.userId);
+//       if (!user) return res.status(404).json({ error: 'User not found' });
+      
+//       user.isActive = !user.isActive;
+//       await user.save();
+      
+//       res.json({ message: 'User status updated', isActive: user.isActive });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error updating user status' });
+//     }
+//   },
+
+//   // // Product Management
+//   // createProduct: async (req, res) => {
+//   //   try {
+//   //     const { name, description, price, quantity, isOffer, offerPrice } = req.body;
+//   //     const image = req.file ? req.file.path : null;
+
+//   //     const product = new Product({
+//   //       name,
+//   //       description,
+//   //       price,
+//   //       quantity,
+//   //       image,
+//   //       isOffer,
+//   //       offerPrice
+//   //     });
+
+//   //     await product.save();
+//   //     res.status(201).json({ product });
+//   //   } catch (error) {
+//   //     res.status(500).json({ error: 'Error creating product' });
+//   //   }
+//   // },
+
+//   // updateProduct: async (req, res) => {
+//   //   try {
+//   //     const updates = req.body;
+//   //     if (req.file) {
+//   //       updates.image = req.file.path;
+//   //     }
+
+//   //     const product = await Product.findByIdAndUpdate(
+//   //       req.params.productId,
+//   //       updates,
+//   //       { new: true }
+//   //     );
+
+//   //     if (!product) return res.status(404).json({ error: 'Product not found' });
+//   //     res.json({ product });
+//   //   } catch (error) {
+//   //     res.status(500).json({ error: 'Error updating product' });
+//   //   }
+//   // },
+
+//   createProduct : async (req, res) => {
+//     try {
+//       console.log("File received:", req.file);
+//       console.log("Request body:", req.body);
+  
+//       const { name, description, price, quantity, isOffer, offerPrice } = req.body;
+//       let imageUrl = null;
+  
+//       if (req.file) {
+//         try {
+//           // Read the file from disk
+//           const imageBuffer = require('fs').readFileSync(req.file.path);
+//           const b64 = Buffer.from(imageBuffer).toString('base64');
+//           const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  
+//           console.log("Attempting Cloudinary upload...");
+  
+//           const result = await cloudinary.uploader.upload(dataURI, {
+//             folder: 'products',
+//             resource_type: 'auto'
+//           });
+  
+//           console.log("Cloudinary result:", result);
+//           imageUrl = result.secure_url;
+  
+//           // Clean up: Delete the file from local storage after upload
+//           require('fs').unlinkSync(req.file.path);
+//         } catch (uploadError) {
+//           console.error('Cloudinary upload error:', uploadError);
+//           return res.status(500).json({ error: 'Error uploading image' });
+//         }
+//       } else {
+//         console.log("No file received in request");
+//       }
+  
+//       const product = new Product({
+//         name,
+//         description,
+//         price,
+//         quantity,
+//         image: imageUrl,
+//         isOffer,
+//         offerPrice
+//       });
+  
+//       await product.save();
+//       res.status(201).json({ product });
+//     } catch (error) {
+//       console.error('Error creating product:', error);
+//       res.status(500).json({ error: 'Error creating product' });
+//     }
+//   },
+
+//   updateProduct: async (req, res) => {
+//     try {
+//       const updates = req.body;
+      
+//       if (req.file) {
+//         // Convert buffer to base64
+//         const b64 = Buffer.from(req.file.buffer).toString('base64');
+//         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        
+//         // Upload to Cloudinary
+//         const result = await cloudinary.uploader.upload(dataURI, {
+//           folder: 'products',
+//           resource_type: 'auto'
+//         });
+        
+//         updates.image = result.secure_url;
+        
+//         // Optionally: Delete old image from Cloudinary if exists
+//         const oldProduct = await Product.findById(req.params.productId);
+//         if (oldProduct && oldProduct.image) {
+//           const publicId = oldProduct.image.split('/').pop().split('.')[0];
+//           await cloudinary.uploader.destroy(`products/${publicId}`);
+//         }
+//       }
+
+//       const product = await Product.findByIdAndUpdate(
+//         req.params.productId,
+//         updates,
+//         { new: true }
+//       );
+
+//       if (!product) return res.status(404).json({ error: 'Product not found' });
+//       res.json({ product });
+//     } catch (error) {
+//       console.error('Error updating product:', error);
+//       res.status(500).json({ error: 'Error updating product' });
+//     }
+//   },
+
+
+//   // Order Management
+//   getAllOrders: async (req, res) => {
+//     try {
+//       const { status, paymentMethod, startDate, endDate } = req.query;
+//       let query = {};
+
+//       if (status) query.status = status;
+//       if (paymentMethod) query.paymentMethod = paymentMethod;
+//       if (startDate && endDate) {
+//         query.createdAt = {
+//           $gte: new Date(startDate),
+//           $lte: new Date(endDate)
+//         };
+//       }
+
+//       const orders = await Order.find(query)
+//         .populate('user', 'name customerDetails.firmName')
+//         .populate('products.product', 'name price');
+
+//       res.json({ orders });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error fetching orders' });
+//     }
+//   },
+
+//   updateOrderStatus: async (req, res) => {
+//     try {
+//       const { status, deliveryNote } = req.body;
+//       const order = await Order.findById(req.params.orderId);
+
+//       if (!order) return res.status(404).json({ error: 'Order not found' });
+
+//       order.status = status;
+//       if (deliveryNote) {
+//         order.deliveryNote = {
+//           ...deliveryNote,
+//           createdAt: new Date()
+//         };
+//       }
+
+//       await order.save();
+//       res.json({ order });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error updating order status' });
+//     }
+//   },
+
+//   // Dashboard Statistics
+//   getDashboardStats: async (req, res) => {
+//     try {
+//       const stats = {
+//         users: await User.countDocuments({ role: 'user' }),
+//         activeUsers: await User.countDocuments({ role: 'user', isActive: true }),
+//         products: await Product.countDocuments(),
+//         lowStock: await Product.countDocuments({ quantity: { $lt: 10 } }),
+//         pendingOrders: await Order.countDocuments({ status: 'pending' }),
+//         completedOrders: await Order.countDocuments({ status: 'completed' })
+//       };
+
+//       res.json({ stats });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error fetching dashboard stats' });
+//     }
+//   }
+// };
+
+// module.exports = adminController;
+
+
+
+
+
+
 const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 
 const adminController = {
-  // User Management
+  // Previous user management methods remain unchanged
   getAllUsers: async (req, res) => {
     try {
       const users = await User.find({ role: 'user' }).select('-password');
@@ -28,60 +267,24 @@ const adminController = {
     }
   },
 
-  // // Product Management
-  // createProduct: async (req, res) => {
-  //   try {
-  //     const { name, description, price, quantity, isOffer, offerPrice } = req.body;
-  //     const image = req.file ? req.file.path : null;
-
-  //     const product = new Product({
-  //       name,
-  //       description,
-  //       price,
-  //       quantity,
-  //       image,
-  //       isOffer,
-  //       offerPrice
-  //     });
-
-  //     await product.save();
-  //     res.status(201).json({ product });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error creating product' });
-  //   }
-  // },
-
-  // updateProduct: async (req, res) => {
-  //   try {
-  //     const updates = req.body;
-  //     if (req.file) {
-  //       updates.image = req.file.path;
-  //     }
-
-  //     const product = await Product.findByIdAndUpdate(
-  //       req.params.productId,
-  //       updates,
-  //       { new: true }
-  //     );
-
-  //     if (!product) return res.status(404).json({ error: 'Product not found' });
-  //     res.json({ product });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error updating product' });
-  //   }
-  // },
-
-  createProduct : async (req, res) => {
+  createProduct: async (req, res) => {
     try {
       console.log("File received:", req.file);
       console.log("Request body:", req.body);
   
-      const { name, description, price, quantity, isOffer, offerPrice } = req.body;
+      const { 
+        name, 
+        description, 
+        originalPrice,  // Changed from price
+        discountedPrice, // New field
+        quantity, 
+        isOffer 
+      } = req.body;
+
       let imageUrl = null;
   
       if (req.file) {
         try {
-          // Read the file from disk
           const imageBuffer = require('fs').readFileSync(req.file.path);
           const b64 = Buffer.from(imageBuffer).toString('base64');
           const dataURI = `data:${req.file.mimetype};base64,${b64}`;
@@ -96,7 +299,6 @@ const adminController = {
           console.log("Cloudinary result:", result);
           imageUrl = result.secure_url;
   
-          // Clean up: Delete the file from local storage after upload
           require('fs').unlinkSync(req.file.path);
         } catch (uploadError) {
           console.error('Cloudinary upload error:', uploadError);
@@ -109,11 +311,11 @@ const adminController = {
       const product = new Product({
         name,
         description,
-        price,
+        originalPrice: Number(originalPrice),
+        discountedPrice: discountedPrice ? Number(discountedPrice) : null,
         quantity,
         image: imageUrl,
-        isOffer,
-        offerPrice
+        isOffer: Boolean(isOffer && discountedPrice && discountedPrice < originalPrice)
       });
   
       await product.save();
@@ -126,14 +328,25 @@ const adminController = {
 
   updateProduct: async (req, res) => {
     try {
-      const updates = req.body;
+      const updates = {
+        ...req.body,
+        originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
+        discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null
+      };
+
+      // Update isOffer based on whether there's a valid discount
+      if (updates.originalPrice || updates.discountedPrice) {
+        const currentProduct = await Product.findById(req.params.productId);
+        const finalOriginalPrice = updates.originalPrice || currentProduct.originalPrice;
+        const finalDiscountedPrice = updates.discountedPrice;
+        
+        updates.isOffer = Boolean(finalDiscountedPrice && finalDiscountedPrice < finalOriginalPrice);
+      }
       
       if (req.file) {
-        // Convert buffer to base64
         const b64 = Buffer.from(req.file.buffer).toString('base64');
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
         
-        // Upload to Cloudinary
         const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'products',
           resource_type: 'auto'
@@ -141,7 +354,6 @@ const adminController = {
         
         updates.image = result.secure_url;
         
-        // Optionally: Delete old image from Cloudinary if exists
         const oldProduct = await Product.findById(req.params.productId);
         if (oldProduct && oldProduct.image) {
           const publicId = oldProduct.image.split('/').pop().split('.')[0];
@@ -163,8 +375,7 @@ const adminController = {
     }
   },
 
-
-  // Order Management
+  // Rest of the controller methods remain unchanged
   getAllOrders: async (req, res) => {
     try {
       const { status, paymentMethod, startDate, endDate } = req.query;
@@ -211,7 +422,6 @@ const adminController = {
     }
   },
 
-  // Dashboard Statistics
   getDashboardStats: async (req, res) => {
     try {
       const stats = {
