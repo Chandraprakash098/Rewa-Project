@@ -400,24 +400,52 @@ const adminController = {
     }
   },
 
-  updateOrderStatus: async (req, res) => {
+  // updateOrderStatus: async (req, res) => {
+  //   try {
+  //     const { status, deliveryNote } = req.body;
+  //     const order = await Order.findById(req.params.orderId);
+
+  //     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  //     order.status = status;
+  //     if (deliveryNote) {
+  //       order.deliveryNote = {
+  //         ...deliveryNote,
+  //         createdAt: new Date()
+  //       };
+  //     }
+
+  //     await order.save();
+  //     res.json({ order });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error updating order status' });
+  //   }
+  // },
+
+  updateOrderStatus : async (req, res) => {
     try {
-      const { status, deliveryNote } = req.body;
+      const { orderStatus, deliveryNote } = req.body;
       const order = await Order.findById(req.params.orderId);
-
+  
       if (!order) return res.status(404).json({ error: 'Order not found' });
-
-      order.status = status;
+  
+      // Validate that the provided status is valid according to the enum
+      if (!['processing', 'confirmed', 'shipped', 'delivered', 'cancelled'].includes(orderStatus)) {
+        return res.status(400).json({ error: 'Invalid order status' });
+      }
+  
+      order.orderStatus = orderStatus;  // Updated to use correct field name
       if (deliveryNote) {
         order.deliveryNote = {
           ...deliveryNote,
           createdAt: new Date()
         };
       }
-
+  
       await order.save();
       res.json({ order });
     } catch (error) {
+      console.error('Error updating order status:', error);
       res.status(500).json({ error: 'Error updating order status' });
     }
   },
