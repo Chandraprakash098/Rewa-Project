@@ -12,9 +12,15 @@ router.post('/customers', upload.single('photo'), receptionController.createCust
 router.get('/users/search', receptionController.searchUsers);
 
 // Order Management
-router.get('/orders/current', receptionController.getCurrentOrders);
+// router.get('/orders/current', receptionController.getCurrentOrders);
 router.get('/orders/user/:userCode', receptionController.getOrdersByUser);
 router.post('/orders', receptionController.createOrderForUser);
+
+
+
+//new
 router.get('/orders/history', receptionController.getOrderHistory);
+router.get('/orders/pending', receptionController.getPendingOrders);
+router.patch('/orders/:orderId/status', receptionController.updateOrderStatus);
 
 module.exports = router;

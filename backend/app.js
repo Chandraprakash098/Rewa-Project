@@ -11,8 +11,10 @@ const marketingRoutes = require('./routes/marketing');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const initCronJobs = require('./config/cronJobs');
 
 const app = express();
+initCronJobs();
 
 
 const uploadDir = path.join(__dirname, 'uploads/profile-photos');

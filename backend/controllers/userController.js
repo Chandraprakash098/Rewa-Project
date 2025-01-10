@@ -4,28 +4,32 @@ const User = require('../models/User');
 const Cart = require('../models/Cart')
 
 const userController = {
-  // Product Browsing
-  getAllProducts: async (req, res) => {
+ 
+   getAllProducts : async (req, res) => {
     try {
-      const products = await Product.find({ isActive: true });
+      const { type, category } = req.query;
+      let query = { isActive: true };
+      
+      if (type) {
+        query.type = type;
+        
+        if (category) {
+          const validCategories = Product.getCategoriesByType(type);
+          if (!validCategories.includes(category)) {
+            return res.status(400).json({ error: 'Invalid category for the selected type' });
+          }
+          query.category = category;
+        }
+      }
+      
+      const products = await Product.find(query);
       res.json({ products });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching products' });
     }
   },
 
-  // getOffers: async (req, res) => {
-  //   try {
-  //     const offers = await Product.find({ 
-  //       isActive: true, 
-  //       isOffer: true 
-  //     });
-  //     res.json({ offers });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error fetching offers' });
-  //   }
-  // },
-
+  
   getOffers: async (req, res) => {
     try {
       const offers = await Product.find({ 
@@ -48,66 +52,115 @@ const userController = {
 
 
 
-// createOrder: async (req, res) => {
-//     try {
-//       const { paymentMethod } = req.body;
-//       const userId = req.user._id;
-    
-//       // Retrieve the cart for the user
-//       const cart = await Cart.findOne({ user: userId }).populate('products.product');
-//       if (!cart || cart.products.length === 0) {
-//         return res.status(400).json({ error: 'Cart is empty' });
-//       }
-    
-//       let totalAmount = 0;
-//       const orderProducts = [];
-    
-//       // Loop through the cart products and calculate totalAmount
-//       for (const item of cart.products) {
-//         const product = item.product;
-//         const price = product.isOffer ? product.offerPrice : product.price;
-    
-//         // Ensure there is enough stock before proceeding
-//         if (product.quantity < item.quantity) {
-//           return res.status(400).json({ error: `Not enough stock for ${product.name}` });
-//         }
-    
-//         totalAmount += price * item.quantity;
-    
-//         orderProducts.push({
-//           product: product._id,
-//           quantity: item.quantity,
-//           price: price
-//         });
-    
-//         // Update product quantity in the database
-//         product.quantity -= item.quantity;
-//         await product.save();
-//       }
-    
-//       // Create the order
-//       const order = new Order({
-//         user: userId,
-//         products: orderProducts,
-//         totalAmount,
-//         paymentMethod,
-//         paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed'
-//       });
-    
-//       await order.save();
-      
-//       // Clear the cart after successful order creation
-//       await Cart.findOneAndDelete({ user: userId });
-    
-//       res.status(201).json({ order });
-//     } catch (error) {
-//       console.error(error);  // Log the error for debugging
-//       res.status(500).json({ error: `Error creating order: ${error.message}` });
-//     }
-// },
   
 
-createOrder: async (req, res) => {
+// createOrder: async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+//     const { paymentMethod } = req.body;
+
+//     // 1. Validate user and address
+//     const user = await User.findById(userId);
+//     if (!user?.customerDetails?.address) {
+//       return res.status(400).json({
+//         error: 'No address found. Please update your profile with a valid address.'
+//       });
+//     }
+
+//     // 2. Get cart with populated product details
+//     const cart = await Cart.findOne({ user: userId })
+//       .populate('products.product');
+
+//     if (!cart || !cart.products.length) {
+//       return res.status(400).json({ error: 'Cart is empty' });
+//     }
+
+//     // 3. Validate stock for all products with detailed error messages
+//     for (const cartItem of cart.products) {
+//       const product = await Product.findById(cartItem.product._id);
+      
+//       console.log(`Checking stock for ${product.name}:`, {
+//         availableStock: product.quantity,
+//         requestedQuantity: cartItem.quantity
+//       });
+
+//       if (!product) {
+//         return res.status(400).json({
+//           error: `Product not found: ${cartItem.product._id}`
+//         });
+//       }
+
+//       if (product.quantity < cartItem.quantity) {
+//         return res.status(400).json({
+//           error: `Not enough stock for ${product.name}`,
+//           product: product.name,
+//           availableStock: product.quantity,
+//           requestedQuantity: cartItem.quantity
+//         });
+//       }
+//     }
+
+//     // 4. Calculate prices and create order products array
+//     const orderProducts = cart.products.map(item => {
+//       const currentPrice = (item.product.discountedPrice && 
+//         item.product.discountedPrice < item.product.originalPrice)
+//         ? item.product.discountedPrice
+//         : item.product.originalPrice;
+
+//       return {
+//         product: item.product._id,
+//         quantity: item.quantity,
+//         price: currentPrice
+//       };
+//     });
+
+//     // 5. Calculate total amount
+//     const totalAmount = orderProducts.reduce((total, item) => {
+//       return total + (item.price * item.quantity);
+//     }, 0);
+
+//     // 6. Create the order
+//     const order = new Order({
+//       user: userId,
+//       products: orderProducts,
+//       totalAmount,
+//       paymentMethod,
+//       shippingAddress: user.customerDetails.address, // Using the address string from user model
+//       firmName: user.customerDetails.firmName,
+//       gstNumber: user.customerDetails.gstNumber,
+//       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+//       orderStatus: 'processing'
+//     });
+
+//     await order.save();
+
+//     // 7. Update product quantities and clear cart
+//     for (const item of cart.products) {
+//       await Product.findByIdAndUpdate(
+//         item.product._id,
+//         { $inc: { quantity: -item.quantity } },
+//         { new: true }
+//       );
+//     }
+
+//     await Cart.findByIdAndDelete(cart._id);
+
+//     res.status(201).json({
+//       message: 'Order created successfully',
+//       order
+//     });
+
+//   } catch (error) {
+//     console.error('Order creation error:', error);
+//     res.status(500).json({
+//       error: 'Error creating order',
+//       details: error.message
+//     });
+//   }
+// },
+
+
+createOrder : async (req, res) => {
   try {
     const userId = req.user._id;
     const { paymentMethod } = req.body;
@@ -132,11 +185,6 @@ createOrder: async (req, res) => {
     for (const cartItem of cart.products) {
       const product = await Product.findById(cartItem.product._id);
       
-      console.log(`Checking stock for ${product.name}:`, {
-        availableStock: product.quantity,
-        requestedQuantity: cartItem.quantity
-      });
-
       if (!product) {
         return res.status(400).json({
           error: `Product not found: ${cartItem.product._id}`
@@ -172,17 +220,22 @@ createOrder: async (req, res) => {
       return total + (item.price * item.quantity);
     }, 0);
 
-    // 6. Create the order
+    // 6. Create the order - Now explicitly setting status to 'pending'
     const order = new Order({
       user: userId,
       products: orderProducts,
       totalAmount,
       paymentMethod,
-      shippingAddress: user.customerDetails.address, // Using the address string from user model
+      shippingAddress: user.customerDetails.address,
       firmName: user.customerDetails.firmName,
       gstNumber: user.customerDetails.gstNumber,
       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-      orderStatus: 'processing'
+      orderStatus: 'pending',  // Explicitly set to pending
+      statusHistory: [{        // Initialize status history
+        status: 'pending',
+        updatedBy: userId,
+        updatedAt: new Date()
+      }]
     });
 
     await order.save();
@@ -199,8 +252,9 @@ createOrder: async (req, res) => {
     await Cart.findByIdAndDelete(cart._id);
 
     res.status(201).json({
-      message: 'Order created successfully',
-      order
+      message: 'Order created successfully and is pending for reception review',
+      order,
+      nextStep: 'Your order is pending and will be processed by our reception team.'
     });
 
   } catch (error) {

@@ -33,33 +33,75 @@ exports.getCurrentOrders = async (req, res) => {
   }
 };
 
-// Get preview orders (all pending orders)
-exports.getPreviewOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ status: 'pending' })
-      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-      .populate('products.product')
-      .sort({ createdAt: -1 });
 
-    res.json(orders);
+
+exports.updateOrderStatus= async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    
+    const validStatuses = ['confirmed', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status for dispatch' });
+    }
+
+    const order = await Order.findById(orderId);
+    // if (!order || order.orderStatus !== 'processing') {
+    //   return res.status(400).json({ error: 'Can only update processing orders' });
+    // }
+
+    order._updatedBy = req.user._id;
+    order.orderStatus = status;
+    await order.save();
+
+    res.json({ message: 'Order status updated successfully', order });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Error updating order status' });
   }
 };
 
-// Get pending orders
-exports.getPendingOrders = async (req, res) => {
+exports.getProcessingOrders= async (req, res) => {
   try {
-    const orders = await Order.find({ status: 'pending' })
-      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-      .populate('products.product')
-      .sort({ createdAt: -1 });
+    const orders = await Order.find({
+      orderStatus: 'processing'
+    })
+    .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+    .populate('products.product')
+    .sort({ createdAt: -1 });
 
-    res.json(orders);
+    res.json({ orders });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Error fetching processing orders' });
   }
 };
+
+// // Get preview orders (all pending orders)
+// exports.getPreviewOrders = async (req, res) => {
+//   try {
+//     const orders = await Order.find({ status: 'pending' })
+//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+//       .populate('products.product')
+//       .sort({ createdAt: -1 });
+
+//     res.json(orders);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// };
+
+// // Get pending orders
+// exports.getPendingOrders = async (req, res) => {
+//   try {
+//     const orders = await Order.find({ status: 'pending' })
+//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+//       .populate('products.product')
+//       .sort({ createdAt: -1 });
+
+//     res.json(orders);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// };
 
 // Generate delivery challan and complete order
 exports.generateChallan = async (req, res) => {
@@ -98,24 +140,45 @@ exports.generateChallan = async (req, res) => {
 };
 
 // Get order history (last 35 days)
+// exports.getOrderHistory = async (req, res) => {
+//   try {
+//     const thirtyFiveDaysAgo = new Date();
+//     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+//     const orders = await Order.find({
+//       status: 'completed',
+//       createdAt: { $gte: thirtyFiveDaysAgo }
+//     })
+//     .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+//     .populate('products.product')
+//     .sort({ createdAt: -1 });
+
+//     res.json(orders);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// };
+
+
 exports.getOrderHistory = async (req, res) => {
-  try {
-    const thirtyFiveDaysAgo = new Date();
-    thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+    try {
+      // Get orders from last 35 days
+      const thirtyFiveDaysAgo = new Date();
+      thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
 
-    const orders = await Order.find({
-      status: 'completed',
-      createdAt: { $gte: thirtyFiveDaysAgo }
-    })
-    .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-    .populate('products.product')
-    .sort({ createdAt: -1 });
+      const orders = await Order.find({
+        createdAt: { $gte: thirtyFiveDaysAgo }
+      })
+      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+      .populate('products.product', 'name price')
+      .sort({ createdAt: -1 });
 
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-};
+      res.json({ orders });
+    } catch (error) {
+      res.status(500).json({ error: 'Error fetching order history' });
+    }
+  };
+
 
 // Get challan by ID
 exports.getChallanById = async (req, res) => {

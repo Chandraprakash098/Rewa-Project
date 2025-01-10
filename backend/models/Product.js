@@ -1,39 +1,3 @@
-// const mongoose = require('mongoose');
-
-// const productSchema = new mongoose.Schema({
-//   name: {
-//     type: String,
-//     required: true
-//   },
-//   description: String,
-//   price: {
-//     type: Number,
-//     required: true
-//   },
-//   offerPrice: Number,
-//   quantity: {
-//     type: Number,
-//     required: true
-//   },
-//   image: String,
-//   isOffer: {
-//     type: Boolean,
-//     default: false
-//   },
-//   isActive: {
-//     type: Boolean,
-//     default: true
-//   },
-//   createdAt: {
-//     type: Date,
-//     default: Date.now
-//   }
-// });
-
-// module.exports = mongoose.model('Product', productSchema);
-
-
-
 
 const mongoose = require('mongoose');
 
@@ -41,6 +5,26 @@ const productSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true
+  },
+  type: {
+    type: String,
+    required: true,
+    enum: ['Bottle', 'Raw Material']
+  },
+  category: {
+    type: String,
+    required: true, // Now required for both types
+    validate: {
+      validator: function(value) {
+        if (this.type === 'Bottle') {
+          return ['500ml', '1L', '2L', '5L'].includes(value);
+        } else if (this.type === 'Raw Material') {
+          return ['Type 1', 'Type 2', 'Type 3'].includes(value);
+        }
+        return false;
+      },
+      message: 'Invalid category for the selected type'
+    }
   },
   description: String,
   originalPrice: {
@@ -65,7 +49,7 @@ const productSchema = new mongoose.Schema({
   }
 });
 
-// Calculate discount percentage and whether item is on offer
+// Existing virtuals remain the same
 productSchema.virtual('discountPercentage').get(function() {
   if (this.discountedPrice && this.originalPrice) {
     const discount = ((this.originalPrice - this.discountedPrice) / this.originalPrice) * 100;
@@ -78,7 +62,15 @@ productSchema.virtual('isOffer').get(function() {
   return Boolean(this.discountedPrice && this.discountedPrice < this.originalPrice);
 });
 
-// Modify toJSON to format the response
+productSchema.statics.getCategoriesByType = function(type) {
+  if (type === 'Bottle') {
+    return ['500ml', '1L', '2L', '5L'];
+  } else if (type === 'Raw Material') {
+    return ['Type 1', 'Type 2', 'Type 3'];
+  }
+  return [];
+};
+
 productSchema.set('toJSON', {
   virtuals: true,
   transform: function(doc, ret) {

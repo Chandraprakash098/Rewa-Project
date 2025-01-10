@@ -247,7 +247,53 @@ const receptionController = {
     } catch (error) {
       res.status(500).json({ error: 'Error searching users' });
     }
-  }
+  },
+
+
+//new 
+  getPendingOrders: async (req, res) => {
+    try {
+      const orders = await Order.find({
+        orderStatus: 'pending'
+      })
+      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+      .populate('products.product')
+      .sort({ createdAt: -1 });
+
+      res.json({ orders });
+    } catch (error) {
+      res.status(500).json({ error: 'Error fetching pending orders' });
+    }
+  },
+
+  updateOrderStatus: async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+
+      if (status !== 'processing') {
+        return res.status(400).json({ error: 'Reception can only set orders to processing status' });
+      }
+
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
+        return res.status(400).json({ error: 'Can only process pending or preview orders' });
+      }
+
+      order._updatedBy = req.user._id;
+      order.orderStatus = status;
+      await order.save();
+
+      res.json({ message: 'Order status updated successfully', order });
+    } catch (error) {
+      res.status(500).json({ error: 'Error updating order status' });
+    }
+  },
+
 };
 
 module.exports = receptionController;
