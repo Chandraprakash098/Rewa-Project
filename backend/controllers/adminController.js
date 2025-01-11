@@ -1,241 +1,3 @@
-// const cloudinary = require('../config/cloudinary');
-// const User = require('../models/User');
-// const Product = require('../models/Product');
-// const Order = require('../models/Order');
-
-// const adminController = {
-//   // User Management
-//   getAllUsers: async (req, res) => {
-//     try {
-//       const users = await User.find({ role: 'user' }).select('-password');
-//       res.json({ users });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error fetching users' });
-//     }
-//   },
-
-//   toggleUserStatus: async (req, res) => {
-//     try {
-//       const user = await User.findById(req.params.userId);
-//       if (!user) return res.status(404).json({ error: 'User not found' });
-      
-//       user.isActive = !user.isActive;
-//       await user.save();
-      
-//       res.json({ message: 'User status updated', isActive: user.isActive });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error updating user status' });
-//     }
-//   },
-
-//   // // Product Management
-//   // createProduct: async (req, res) => {
-//   //   try {
-//   //     const { name, description, price, quantity, isOffer, offerPrice } = req.body;
-//   //     const image = req.file ? req.file.path : null;
-
-//   //     const product = new Product({
-//   //       name,
-//   //       description,
-//   //       price,
-//   //       quantity,
-//   //       image,
-//   //       isOffer,
-//   //       offerPrice
-//   //     });
-
-//   //     await product.save();
-//   //     res.status(201).json({ product });
-//   //   } catch (error) {
-//   //     res.status(500).json({ error: 'Error creating product' });
-//   //   }
-//   // },
-
-//   // updateProduct: async (req, res) => {
-//   //   try {
-//   //     const updates = req.body;
-//   //     if (req.file) {
-//   //       updates.image = req.file.path;
-//   //     }
-
-//   //     const product = await Product.findByIdAndUpdate(
-//   //       req.params.productId,
-//   //       updates,
-//   //       { new: true }
-//   //     );
-
-//   //     if (!product) return res.status(404).json({ error: 'Product not found' });
-//   //     res.json({ product });
-//   //   } catch (error) {
-//   //     res.status(500).json({ error: 'Error updating product' });
-//   //   }
-//   // },
-
-//   createProduct : async (req, res) => {
-//     try {
-//       console.log("File received:", req.file);
-//       console.log("Request body:", req.body);
-  
-//       const { name, description, price, quantity, isOffer, offerPrice } = req.body;
-//       let imageUrl = null;
-  
-//       if (req.file) {
-//         try {
-//           // Read the file from disk
-//           const imageBuffer = require('fs').readFileSync(req.file.path);
-//           const b64 = Buffer.from(imageBuffer).toString('base64');
-//           const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-  
-//           console.log("Attempting Cloudinary upload...");
-  
-//           const result = await cloudinary.uploader.upload(dataURI, {
-//             folder: 'products',
-//             resource_type: 'auto'
-//           });
-  
-//           console.log("Cloudinary result:", result);
-//           imageUrl = result.secure_url;
-  
-//           // Clean up: Delete the file from local storage after upload
-//           require('fs').unlinkSync(req.file.path);
-//         } catch (uploadError) {
-//           console.error('Cloudinary upload error:', uploadError);
-//           return res.status(500).json({ error: 'Error uploading image' });
-//         }
-//       } else {
-//         console.log("No file received in request");
-//       }
-  
-//       const product = new Product({
-//         name,
-//         description,
-//         price,
-//         quantity,
-//         image: imageUrl,
-//         isOffer,
-//         offerPrice
-//       });
-  
-//       await product.save();
-//       res.status(201).json({ product });
-//     } catch (error) {
-//       console.error('Error creating product:', error);
-//       res.status(500).json({ error: 'Error creating product' });
-//     }
-//   },
-
-//   updateProduct: async (req, res) => {
-//     try {
-//       const updates = req.body;
-      
-//       if (req.file) {
-//         // Convert buffer to base64
-//         const b64 = Buffer.from(req.file.buffer).toString('base64');
-//         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        
-//         // Upload to Cloudinary
-//         const result = await cloudinary.uploader.upload(dataURI, {
-//           folder: 'products',
-//           resource_type: 'auto'
-//         });
-        
-//         updates.image = result.secure_url;
-        
-//         // Optionally: Delete old image from Cloudinary if exists
-//         const oldProduct = await Product.findById(req.params.productId);
-//         if (oldProduct && oldProduct.image) {
-//           const publicId = oldProduct.image.split('/').pop().split('.')[0];
-//           await cloudinary.uploader.destroy(`products/${publicId}`);
-//         }
-//       }
-
-//       const product = await Product.findByIdAndUpdate(
-//         req.params.productId,
-//         updates,
-//         { new: true }
-//       );
-
-//       if (!product) return res.status(404).json({ error: 'Product not found' });
-//       res.json({ product });
-//     } catch (error) {
-//       console.error('Error updating product:', error);
-//       res.status(500).json({ error: 'Error updating product' });
-//     }
-//   },
-
-
-//   // Order Management
-//   getAllOrders: async (req, res) => {
-//     try {
-//       const { status, paymentMethod, startDate, endDate } = req.query;
-//       let query = {};
-
-//       if (status) query.status = status;
-//       if (paymentMethod) query.paymentMethod = paymentMethod;
-//       if (startDate && endDate) {
-//         query.createdAt = {
-//           $gte: new Date(startDate),
-//           $lte: new Date(endDate)
-//         };
-//       }
-
-//       const orders = await Order.find(query)
-//         .populate('user', 'name customerDetails.firmName')
-//         .populate('products.product', 'name price');
-
-//       res.json({ orders });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error fetching orders' });
-//     }
-//   },
-
-//   updateOrderStatus: async (req, res) => {
-//     try {
-//       const { status, deliveryNote } = req.body;
-//       const order = await Order.findById(req.params.orderId);
-
-//       if (!order) return res.status(404).json({ error: 'Order not found' });
-
-//       order.status = status;
-//       if (deliveryNote) {
-//         order.deliveryNote = {
-//           ...deliveryNote,
-//           createdAt: new Date()
-//         };
-//       }
-
-//       await order.save();
-//       res.json({ order });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error updating order status' });
-//     }
-//   },
-
-//   // Dashboard Statistics
-//   getDashboardStats: async (req, res) => {
-//     try {
-//       const stats = {
-//         users: await User.countDocuments({ role: 'user' }),
-//         activeUsers: await User.countDocuments({ role: 'user', isActive: true }),
-//         products: await Product.countDocuments(),
-//         lowStock: await Product.countDocuments({ quantity: { $lt: 10 } }),
-//         pendingOrders: await Order.countDocuments({ status: 'pending' }),
-//         completedOrders: await Order.countDocuments({ status: 'completed' })
-//       };
-
-//       res.json({ stats });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error fetching dashboard stats' });
-//     }
-//   }
-// };
-
-// module.exports = adminController;
-
-
-
-
-
 
 const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
@@ -304,7 +66,65 @@ const adminController = {
   
 
 
-  createProduct : async (req, res) => {
+  // createProduct : async (req, res) => {
+  //   try {
+  //     const { 
+  //       name, 
+  //       type,
+  //       category,
+  //       description, 
+  //       originalPrice, 
+  //       discountedPrice, 
+  //       quantity, 
+  //       isOffer 
+  //     } = req.body;
+  
+  //     // Validate category based on type
+  //     const validCategories = Product.getCategoriesByType(type);
+  //     if (!validCategories.includes(category)) {
+  //       return res.status(400).json({ 
+  //         error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}` 
+  //       });
+  //     }
+  
+  //     let imageUrl = null;
+  
+  //     if (req.file) {
+  //       const imageBuffer = require('fs').readFileSync(req.file.path);
+  //       const b64 = Buffer.from(imageBuffer).toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+  
+  //       imageUrl = result.secure_url;
+  //       require('fs').unlinkSync(req.file.path);
+  //     }
+  
+  //     const product = new Product({
+  //       name,
+  //       type,
+  //       category,
+  //       description,
+  //       originalPrice: Number(originalPrice),
+  //       discountedPrice: discountedPrice ? Number(discountedPrice) : null,
+  //       quantity,
+  //       image: imageUrl,
+  //       isOffer: Boolean(isOffer && discountedPrice && discountedPrice < originalPrice)
+  //     });
+  
+  //     await product.save();
+  //     res.status(201).json({ product });
+  //   } catch (error) {
+  //     console.error('Error creating product:', error);
+  //     res.status(500).json({ error: error.message || 'Error creating product' });
+  //   }
+  // },
+
+
+  createProduct: async (req, res) => {
     try {
       const { 
         name, 
@@ -313,8 +133,9 @@ const adminController = {
         description, 
         originalPrice, 
         discountedPrice, 
-        quantity, 
-        isOffer 
+        quantity,
+        validFrom,
+        validTo
       } = req.body;
   
       // Validate category based on type
@@ -323,6 +144,25 @@ const adminController = {
         return res.status(400).json({ 
           error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}` 
         });
+      }
+  
+      // Validate offer dates if discount is provided
+      if (discountedPrice) {
+        if (!validFrom || !validTo) {
+          return res.status(400).json({
+            error: 'validFrom and validTo dates are required when setting a discounted price'
+          });
+        }
+  
+        const fromDate = new Date(validFrom);
+        const toDate = new Date(validTo);
+        const now = new Date();
+  
+        if (fromDate > toDate) {
+          return res.status(400).json({
+            error: 'validTo date must be after validFrom date'
+          });
+        }
       }
   
       let imageUrl = null;
@@ -350,7 +190,8 @@ const adminController = {
         discountedPrice: discountedPrice ? Number(discountedPrice) : null,
         quantity,
         image: imageUrl,
-        isOffer: Boolean(isOffer && discountedPrice && discountedPrice < originalPrice)
+        validFrom: validFrom || null,
+        validTo: validTo || null
       });
   
       await product.save();
@@ -375,14 +216,38 @@ const adminController = {
     }
   },
 
-  getAllProducts :async (req, res) => {
-    try {
-      const products = await Product.find({});
-      res.json({ products });
-    } catch (error) {
-      res.status(500).json({ error: 'Error fetching products' });
-    }
-  },
+  // getAllProducts :async (req, res) => {
+  //   try {
+  //     const products = await Product.find({});
+  //     res.json({ products });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching products' });
+  //   }
+  // },
+
+  getAllProducts : async (req, res) => {
+      try {
+        const { type, category } = req.query;
+        let query = { isActive: true };
+        
+        if (type) {
+          query.type = type;
+          
+          if (category) {
+            const validCategories = Product.getCategoriesByType(type);
+            if (!validCategories.includes(category)) {
+              return res.status(400).json({ error: 'Invalid category for the selected type' });
+            }
+            query.category = category;
+          }
+        }
+        
+        const products = await Product.find(query);
+        res.json({ products });
+      } catch (error) {
+        res.status(500).json({ error: 'Error fetching products' });
+      }
+    },
   
   deleteProduct :async (req, res) => {
     try {
@@ -396,21 +261,83 @@ const adminController = {
     }
   },
 
+  // updateProduct: async (req, res) => {
+  //   try {
+  //     const updates = {
+  //       ...req.body,
+  //       originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
+  //       discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null
+  //     };
+
+  //     // Update isOffer based on whether there's a valid discount
+  //     if (updates.originalPrice || updates.discountedPrice) {
+  //       const currentProduct = await Product.findById(req.params.productId);
+  //       const finalOriginalPrice = updates.originalPrice || currentProduct.originalPrice;
+  //       const finalDiscountedPrice = updates.discountedPrice;
+        
+  //       updates.isOffer = Boolean(finalDiscountedPrice && finalDiscountedPrice < finalOriginalPrice);
+  //     }
+      
+  //     if (req.file) {
+  //       const b64 = Buffer.from(req.file.buffer).toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+        
+  //       updates.image = result.secure_url;
+        
+  //       const oldProduct = await Product.findById(req.params.productId);
+  //       if (oldProduct && oldProduct.image) {
+  //         const publicId = oldProduct.image.split('/').pop().split('.')[0];
+  //         await cloudinary.uploader.destroy(`products/${publicId}`);
+  //       }
+  //     }
+
+  //     const product = await Product.findByIdAndUpdate(
+  //       req.params.productId,
+  //       updates,
+  //       { new: true }
+  //     );
+
+  //     if (!product) return res.status(404).json({ error: 'Product not found' });
+  //     res.json({ product });
+  //   } catch (error) {
+  //     console.error('Error updating product:', error);
+  //     res.status(500).json({ error: 'Error updating product' });
+  //   }
+  // },
+
   updateProduct: async (req, res) => {
     try {
       const updates = {
         ...req.body,
         originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
-        discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null
+        discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null,
+        validFrom: req.body.validFrom || null,
+        validTo: req.body.validTo || null
       };
-
-      // Update isOffer based on whether there's a valid discount
-      if (updates.originalPrice || updates.discountedPrice) {
-        const currentProduct = await Product.findById(req.params.productId);
-        const finalOriginalPrice = updates.originalPrice || currentProduct.originalPrice;
-        const finalDiscountedPrice = updates.discountedPrice;
-        
-        updates.isOffer = Boolean(finalDiscountedPrice && finalDiscountedPrice < finalOriginalPrice);
+  
+      // Validate offer dates if discount is being updated
+      if (updates.discountedPrice !== undefined) {
+        if (updates.discountedPrice && (!updates.validFrom || !updates.validTo)) {
+          return res.status(400).json({
+            error: 'validFrom and validTo dates are required when setting a discounted price'
+          });
+        }
+  
+        if (updates.validFrom && updates.validTo) {
+          const fromDate = new Date(updates.validFrom);
+          const toDate = new Date(updates.validTo);
+  
+          if (fromDate > toDate) {
+            return res.status(400).json({
+              error: 'validTo date must be after validFrom date'
+            });
+          }
+        }
       }
       
       if (req.file) {
@@ -430,13 +357,13 @@ const adminController = {
           await cloudinary.uploader.destroy(`products/${publicId}`);
         }
       }
-
+  
       const product = await Product.findByIdAndUpdate(
         req.params.productId,
         updates,
         { new: true }
       );
-
+  
       if (!product) return res.status(404).json({ error: 'Product not found' });
       res.json({ product });
     } catch (error) {
