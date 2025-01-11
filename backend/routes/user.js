@@ -19,6 +19,8 @@ router.post('/orders', auth, userController.createOrder);
 router.get('/orders/history', auth, userController.getOrderHistory);
 
 // Profile Routes
+// Add this to userRoutes:
+router.get('/profile', auth, userController.getProfile);
 router.put('/profile', auth, userController.updateProfile);
 router.post('/profile/change-password', auth, userController.changePassword);
 

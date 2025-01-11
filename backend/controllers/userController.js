@@ -323,7 +323,39 @@ createOrder : async (req, res) => {
     } catch (error) {
       res.status(500).json({ error: 'Error changing password' });
     }
+  },
+
+
+
+  // Add this to userController:
+getProfile: async (req, res) => {
+  try {
+    // Find user by ID and exclude password field
+    const user = await User.findById(req.user._id)
+      .select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      user: {
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        customerDetails: {
+          firmName: user.customerDetails?.firmName,
+          gstNumber: user.customerDetails?.gstNumber,
+          panNumber: user.customerDetails?.panNumber,
+          address: user.customerDetails?.address
+        },
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching profile' });
   }
+}
 };
 
 module.exports = userController;
