@@ -40,7 +40,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/reception', receptionRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/dispatch', dispatchRoutes);
-// app.use('/api/marketing', marketingRoutes);
+app.use('/api/marketing', marketingRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

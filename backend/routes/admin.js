@@ -28,4 +28,8 @@ router.get('/orders', adminController.getAllOrders);
 router.get('/orders/preview', adminController.getPreviewOrders);
 router.post('/orders/:orderId/process', adminController.processPreviewOrder);
 
+
+router.get('/marketing-activities', adminController.getAllMarketingActivities);
+router.patch('/marketing-activities/:activityId/review', adminController.reviewMarketingActivity);
+
 module.exports = router;

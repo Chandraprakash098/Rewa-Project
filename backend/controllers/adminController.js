@@ -3,6 +3,7 @@ const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
+const MarketingActivity = require('../models/MarketingActivity');
 
 const adminController = {
   
@@ -60,68 +61,6 @@ const adminController = {
       res.status(500).json({ error: 'Error updating user status' });
     }
   },
-
-  
-
-  
-
-
-  // createProduct : async (req, res) => {
-  //   try {
-  //     const { 
-  //       name, 
-  //       type,
-  //       category,
-  //       description, 
-  //       originalPrice, 
-  //       discountedPrice, 
-  //       quantity, 
-  //       isOffer 
-  //     } = req.body;
-  
-  //     // Validate category based on type
-  //     const validCategories = Product.getCategoriesByType(type);
-  //     if (!validCategories.includes(category)) {
-  //       return res.status(400).json({ 
-  //         error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}` 
-  //       });
-  //     }
-  
-  //     let imageUrl = null;
-  
-  //     if (req.file) {
-  //       const imageBuffer = require('fs').readFileSync(req.file.path);
-  //       const b64 = Buffer.from(imageBuffer).toString('base64');
-  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-  
-  //       const result = await cloudinary.uploader.upload(dataURI, {
-  //         folder: 'products',
-  //         resource_type: 'auto'
-  //       });
-  
-  //       imageUrl = result.secure_url;
-  //       require('fs').unlinkSync(req.file.path);
-  //     }
-  
-  //     const product = new Product({
-  //       name,
-  //       type,
-  //       category,
-  //       description,
-  //       originalPrice: Number(originalPrice),
-  //       discountedPrice: discountedPrice ? Number(discountedPrice) : null,
-  //       quantity,
-  //       image: imageUrl,
-  //       isOffer: Boolean(isOffer && discountedPrice && discountedPrice < originalPrice)
-  //     });
-  
-  //     await product.save();
-  //     res.status(201).json({ product });
-  //   } catch (error) {
-  //     console.error('Error creating product:', error);
-  //     res.status(500).json({ error: error.message || 'Error creating product' });
-  //   }
-  // },
 
 
   createProduct: async (req, res) => {
@@ -570,7 +509,52 @@ checkUserStatus : async (req, res, next) => {
   } catch (error) {
     res.status(500).json({ error: 'Error checking user status' });
   }
+},
+
+
+
+
+
+//For Marketing
+
+getAllMarketingActivities: async (req, res) => {
+  try {
+    const activities = await MarketingActivity.find({})
+      .populate('marketingUser', 'name email customerDetails.firmName')
+      .sort({ createdAt: -1 });
+
+    res.json({ activities });
+  } catch (error) {
+    console.error('Error fetching marketing activities:', error);
+    res.status(500).json({ error: 'Error fetching marketing activities' });
+  }
+},
+
+// Review marketing activity
+reviewMarketingActivity: async (req, res) => {
+  try {
+    const activity = await MarketingActivity.findById(req.params.activityId);
+    
+    if (!activity) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+
+    activity.status = 'reviewed';
+    activity.reviewedAt = new Date();
+    activity.reviewedBy = req.user._id;
+    
+    await activity.save();
+
+    res.json({ 
+      message: 'Marketing activity reviewed successfully',
+      activity 
+    });
+  } catch (error) {
+    console.error('Error reviewing marketing activity:', error);
+    res.status(500).json({ error: 'Error reviewing marketing activity' });
+  }
 }
+
 
 };
 
