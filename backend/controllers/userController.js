@@ -204,11 +204,11 @@ const userController = {
         productTypes.add(product.type);
       }
 
-      if (productTypes.size > 1) {
-        return res.status(400).json({
-          error: "Cart contains products of multiple types. Please order one type at a time.",
-        });
-      }
+      // if (productTypes.size > 1) {
+      //   return res.status(400).json({
+      //     error: "Cart contains products of multiple types. Please order one type at a time.",
+      //   });
+      // }
 
       const [orderType] = productTypes;
 
