@@ -145,6 +145,11 @@ const orderSchema = new mongoose.Schema({
     required: true
   },
   gstNumber: String,
+  type: {
+    type: String,
+    required: true,
+    enum: ['Bottle', 'Raw Material'], // Add additional types as needed
+  },
   statusHistory: [{
     status: String,
     updatedBy: {

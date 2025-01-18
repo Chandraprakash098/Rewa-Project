@@ -49,37 +49,147 @@ const userController = {
     }
   },
 
+  // createOrder: async (req, res) => {
+  //   try {
+  //     const userId = req.user._id;
+  //     const { paymentMethod } = req.body;
+
+  //     // 1. Validate user and address
+  //     const user = await User.findById(userId);
+  //     if (!user?.customerDetails?.address) {
+  //       return res.status(400).json({
+  //         error:
+  //           "No address found. Please update your profile with a valid address.",
+  //       });
+  //     }
+
+  //     // 2. Get cart with populated product details
+  //     const cart = await Cart.findOne({ user: userId }).populate(
+  //       "products.product"
+  //     );
+
+  //     if (!cart || !cart.products.length) {
+  //       return res.status(400).json({ error: "Cart is empty" });
+  //     }
+
+  //     // 3. Validate stock for all products with detailed error messages
+  //     for (const cartItem of cart.products) {
+  //       const product = await Product.findById(cartItem.product._id);
+
+  //       if (!product) {
+  //         return res.status(400).json({
+  //           error: `Product not found: ${cartItem.product._id}`,
+  //         });
+  //       }
+
+  //       if (product.quantity < cartItem.quantity) {
+  //         return res.status(400).json({
+  //           error: `Not enough stock for ${product.name}`,
+  //           product: product.name,
+  //           availableStock: product.quantity,
+  //           requestedQuantity: cartItem.quantity,
+  //         });
+  //       }
+  //     }
+
+  //     // 4. Calculate prices and create order products array
+  //     const orderProducts = cart.products.map((item) => {
+  //       const currentPrice =
+  //         item.product.discountedPrice &&
+  //         item.product.discountedPrice < item.product.originalPrice
+  //           ? item.product.discountedPrice
+  //           : item.product.originalPrice;
+
+  //       return {
+  //         product: item.product._id,
+  //         quantity: item.quantity,
+  //         price: currentPrice,
+  //       };
+  //     });
+
+  //     // 5. Calculate total amount
+  //     const totalAmount = orderProducts.reduce((total, item) => {
+  //       return total + item.price * item.quantity;
+  //     }, 0);
+
+  //     // 6. Create the order - Now explicitly setting status to 'pending'
+  //     const order = new Order({
+  //       user: userId,
+  //       products: orderProducts,
+  //       totalAmount,
+  //       paymentMethod,
+  //       shippingAddress: user.customerDetails.address,
+  //       firmName: user.customerDetails.firmName,
+  //       gstNumber: user.customerDetails.gstNumber,
+  //       paymentStatus: paymentMethod === "COD" ? "pending" : "completed",
+  //       orderStatus: "pending", // Explicitly set to pending
+  //       statusHistory: [
+  //         {
+  //           // Initialize status history
+  //           status: "pending",
+  //           updatedBy: userId,
+  //           updatedAt: new Date(),
+  //         },
+  //       ],
+  //     });
+
+  //     await order.save();
+
+  //     // 7. Update product quantities and clear cart
+  //     for (const item of cart.products) {
+  //       await Product.findByIdAndUpdate(
+  //         item.product._id,
+  //         { $inc: { quantity: -item.quantity } },
+  //         { new: true }
+  //       );
+  //     }
+
+  //     await Cart.findByIdAndDelete(cart._id);
+
+  //     res.status(201).json({
+  //       message:
+  //         "Order created successfully and is pending for reception review",
+  //       order,
+  //       nextStep:
+  //         "Your order is pending and will be processed by our reception team.",
+  //     });
+  //   } catch (error) {
+  //     console.error("Order creation error:", error);
+  //     res.status(500).json({
+  //       error: "Error creating order",
+  //       details: error.message,
+  //     });
+  //   }
+  // },
+
+
   createOrder: async (req, res) => {
     try {
       const userId = req.user._id;
       const { paymentMethod } = req.body;
 
-      // 1. Validate user and address
+      // Validate user and address
       const user = await User.findById(userId);
       if (!user?.customerDetails?.address) {
         return res.status(400).json({
-          error:
-            "No address found. Please update your profile with a valid address.",
+          error: "No address found. Please update your profile with a valid address.",
         });
       }
 
-      // 2. Get cart with populated product details
-      const cart = await Cart.findOne({ user: userId }).populate(
-        "products.product"
-      );
+      // Get cart with populated product details
+      const cart = await Cart.findOne({ user: userId }).populate("products.product");
 
       if (!cart || !cart.products.length) {
         return res.status(400).json({ error: "Cart is empty" });
       }
 
-      // 3. Validate stock for all products with detailed error messages
+      // Validate stock and ensure products are of the same type
+      const productTypes = new Set();
       for (const cartItem of cart.products) {
         const product = await Product.findById(cartItem.product._id);
 
         if (!product) {
-          return res.status(400).json({
-            error: `Product not found: ${cartItem.product._id}`,
-          });
+          return res.status(400).json({ error: `Product not found: ${cartItem.product._id}` });
         }
 
         if (product.quantity < cartItem.quantity) {
@@ -90,13 +200,22 @@ const userController = {
             requestedQuantity: cartItem.quantity,
           });
         }
+
+        productTypes.add(product.type);
       }
 
-      // 4. Calculate prices and create order products array
+      if (productTypes.size > 1) {
+        return res.status(400).json({
+          error: "Cart contains products of multiple types. Please order one type at a time.",
+        });
+      }
+
+      const [orderType] = productTypes;
+
+      // Calculate prices and create order products array
       const orderProducts = cart.products.map((item) => {
         const currentPrice =
-          item.product.discountedPrice &&
-          item.product.discountedPrice < item.product.originalPrice
+          item.product.discountedPrice && item.product.discountedPrice < item.product.originalPrice
             ? item.product.discountedPrice
             : item.product.originalPrice;
 
@@ -107,25 +226,25 @@ const userController = {
         };
       });
 
-      // 5. Calculate total amount
+      // Calculate total amount
       const totalAmount = orderProducts.reduce((total, item) => {
         return total + item.price * item.quantity;
       }, 0);
 
-      // 6. Create the order - Now explicitly setting status to 'pending'
+      // Create the order
       const order = new Order({
         user: userId,
         products: orderProducts,
         totalAmount,
         paymentMethod,
+        type: orderType, // Set the order type
         shippingAddress: user.customerDetails.address,
         firmName: user.customerDetails.firmName,
         gstNumber: user.customerDetails.gstNumber,
         paymentStatus: paymentMethod === "COD" ? "pending" : "completed",
-        orderStatus: "pending", // Explicitly set to pending
+        orderStatus: "pending",
         statusHistory: [
           {
-            // Initialize status history
             status: "pending",
             updatedBy: userId,
             updatedAt: new Date(),
@@ -135,7 +254,7 @@ const userController = {
 
       await order.save();
 
-      // 7. Update product quantities and clear cart
+      // Update product quantities and clear cart
       for (const item of cart.products) {
         await Product.findByIdAndUpdate(
           item.product._id,
@@ -147,20 +266,15 @@ const userController = {
       await Cart.findByIdAndDelete(cart._id);
 
       res.status(201).json({
-        message:
-          "Order created successfully and is pending for reception review",
+        message: "Order created successfully.",
         order,
-        nextStep:
-          "Your order is pending and will be processed by our reception team.",
       });
     } catch (error) {
       console.error("Order creation error:", error);
-      res.status(500).json({
-        error: "Error creating order",
-        details: error.message,
-      });
+      res.status(500).json({ error: "Error creating order", details: error.message });
     }
   },
+
 
   getOrderHistory: async (req, res) => {
     try {

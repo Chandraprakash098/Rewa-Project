@@ -361,24 +361,46 @@ const adminController = {
   //   }
   // },
 
-  getAllOrders : async (req, res) => {
+  // getAllOrders : async (req, res) => {
+  //   try {
+  //     const { type } = req.query;
+  //     let query = {};
+
+  //     if (type) {
+  //       // We need to find orders that have products of the specified type
+  //       query['products.product'] = {
+  //         $in: await Product.find({ type }).distinct('_id')
+  //       };
+  //     }
+
+  //     const orders = await Order.find({})
+  //       .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt')
+  //       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+  //       .populate('products.product', 'name type')
+  //       .sort({ createdAt: -1 });
+  
+  //     res.json({ orders });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching orders' });
+  //   }
+  // },
+
+
+  getAllOrders: async (req, res) => {
     try {
       const { type } = req.query;
-      let query = {};
+      const query = {};
 
       if (type) {
-        // We need to find orders that have products of the specified type
-        query['products.product'] = {
-          $in: await Product.find({ type }).distinct('_id')
-        };
+        query.type = type; // Filter by type if provided
       }
 
-      const orders = await Order.find({})
+      const orders = await Order.find(query)
         .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt')
         .populate('user', 'name customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type')
         .sort({ createdAt: -1 });
-  
+
       res.json({ orders });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching orders' });
