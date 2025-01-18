@@ -363,9 +363,20 @@ const adminController = {
 
   getAllOrders : async (req, res) => {
     try {
+      const { type } = req.query;
+      let query = {};
+
+      if (type) {
+        // We need to find orders that have products of the specified type
+        query['products.product'] = {
+          $in: await Product.find({ type }).distinct('_id')
+        };
+      }
+
       const orders = await Order.find({})
         .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt')
         .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+        .populate('products.product', 'name type')
         .sort({ createdAt: -1 });
   
       res.json({ orders });
