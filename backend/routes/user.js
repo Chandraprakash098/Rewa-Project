@@ -27,15 +27,15 @@ router.post('/profile/change-password', auth, userController.changePassword);
 //for Payments
 
 // Add these to your routes file
-router.post('/create-payment-intent', auth, paymentController.createPaymentIntent);
-router.post('/webhook', express.raw({type: 'application/json'}), paymentController.handlePaymentWebhook);
+// router.post('/create-payment-intent', auth, paymentController.createPaymentIntent);
+// router.post('/webhook', express.raw({type: 'application/json'}), paymentController.handlePaymentWebhook);
 
-// router.post('/create-razorpay-order', auth, paymentController.createRazorpayOrder);
+router.post('/create-razorpay-order', auth, paymentController.createRazorpayOrder);
 
-// // Route for creating COD order
-// router.post('/create-cod-order', auth, paymentController.createCODOrder);
+// Route for creating COD order
+router.post('/create-cod-order', auth, paymentController.createCODOrder);
 
-// // Route for verifying Razorpay payment
-// router.post('/verify-payment', auth, paymentController.verifyPayment);
+// Route for verifying Razorpay payment
+router.post('/verify-payment', auth, paymentController.verifyPayment);
 
 module.exports = router;
