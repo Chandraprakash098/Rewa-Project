@@ -2,6 +2,14 @@ const Product = require("../models/Product");
 const Order = require("../models/Order");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 const userController = {
   getAllProducts: async (req, res) => {
@@ -49,124 +57,21 @@ const userController = {
     }
   },
 
-  // createOrder: async (req, res) => {
-  //   try {
-  //     const userId = req.user._id;
-  //     const { paymentMethod } = req.body;
-
-  //     // 1. Validate user and address
-  //     const user = await User.findById(userId);
-  //     if (!user?.customerDetails?.address) {
-  //       return res.status(400).json({
-  //         error:
-  //           "No address found. Please update your profile with a valid address.",
-  //       });
-  //     }
-
-  //     // 2. Get cart with populated product details
-  //     const cart = await Cart.findOne({ user: userId }).populate(
-  //       "products.product"
-  //     );
-
-  //     if (!cart || !cart.products.length) {
-  //       return res.status(400).json({ error: "Cart is empty" });
-  //     }
-
-  //     // 3. Validate stock for all products with detailed error messages
-  //     for (const cartItem of cart.products) {
-  //       const product = await Product.findById(cartItem.product._id);
-
-  //       if (!product) {
-  //         return res.status(400).json({
-  //           error: `Product not found: ${cartItem.product._id}`,
-  //         });
-  //       }
-
-  //       if (product.quantity < cartItem.quantity) {
-  //         return res.status(400).json({
-  //           error: `Not enough stock for ${product.name}`,
-  //           product: product.name,
-  //           availableStock: product.quantity,
-  //           requestedQuantity: cartItem.quantity,
-  //         });
-  //       }
-  //     }
-
-  //     // 4. Calculate prices and create order products array
-  //     const orderProducts = cart.products.map((item) => {
-  //       const currentPrice =
-  //         item.product.discountedPrice &&
-  //         item.product.discountedPrice < item.product.originalPrice
-  //           ? item.product.discountedPrice
-  //           : item.product.originalPrice;
-
-  //       return {
-  //         product: item.product._id,
-  //         quantity: item.quantity,
-  //         price: currentPrice,
-  //       };
-  //     });
-
-  //     // 5. Calculate total amount
-  //     const totalAmount = orderProducts.reduce((total, item) => {
-  //       return total + item.price * item.quantity;
-  //     }, 0);
-
-  //     // 6. Create the order - Now explicitly setting status to 'pending'
-  //     const order = new Order({
-  //       user: userId,
-  //       products: orderProducts,
-  //       totalAmount,
-  //       paymentMethod,
-  //       shippingAddress: user.customerDetails.address,
-  //       firmName: user.customerDetails.firmName,
-  //       gstNumber: user.customerDetails.gstNumber,
-  //       paymentStatus: paymentMethod === "COD" ? "pending" : "completed",
-  //       orderStatus: "pending", // Explicitly set to pending
-  //       statusHistory: [
-  //         {
-  //           // Initialize status history
-  //           status: "pending",
-  //           updatedBy: userId,
-  //           updatedAt: new Date(),
-  //         },
-  //       ],
-  //     });
-
-  //     await order.save();
-
-  //     // 7. Update product quantities and clear cart
-  //     for (const item of cart.products) {
-  //       await Product.findByIdAndUpdate(
-  //         item.product._id,
-  //         { $inc: { quantity: -item.quantity } },
-  //         { new: true }
-  //       );
-  //     }
-
-  //     await Cart.findByIdAndDelete(cart._id);
-
-  //     res.status(201).json({
-  //       message:
-  //         "Order created successfully and is pending for reception review",
-  //       order,
-  //       nextStep:
-  //         "Your order is pending and will be processed by our reception team.",
-  //     });
-  //   } catch (error) {
-  //     console.error("Order creation error:", error);
-  //     res.status(500).json({
-  //       error: "Error creating order",
-  //       details: error.message,
-  //     });
-  //   }
-  // },
 
 
   createOrder: async (req, res) => {
     try {
       const userId = req.user._id;
       const { paymentMethod } = req.body;
+
+      // Validate payment method
+      const validPaymentMethods = ['UPI', 'netBanking', 'debitCard', 'COD'];
+      if (!validPaymentMethods.includes(paymentMethod)) {
+        return res.status(400).json({
+          error: 'Invalid payment method',
+          validMethods: validPaymentMethods
+        });
+      }
 
       // Validate user and address
       const user = await User.findById(userId);
@@ -178,18 +83,19 @@ const userController = {
 
       // Get cart with populated product details
       const cart = await Cart.findOne({ user: userId }).populate("products.product");
-
       if (!cart || !cart.products.length) {
         return res.status(400).json({ error: "Cart is empty" });
       }
 
-      // Validate stock and ensure products are of the same type
+      // Validate stock and ensure products are active
       const productTypes = new Set();
       for (const cartItem of cart.products) {
         const product = await Product.findById(cartItem.product._id);
 
-        if (!product) {
-          return res.status(400).json({ error: `Product not found: ${cartItem.product._id}` });
+        if (!product || !product.isActive) {
+          return res.status(400).json({ 
+            error: `Product not found or inactive: ${cartItem.product.name}` 
+          });
         }
 
         if (product.quantity < cartItem.quantity) {
@@ -204,20 +110,12 @@ const userController = {
         productTypes.add(product.type);
       }
 
-      // if (productTypes.size > 1) {
-      //   return res.status(400).json({
-      //     error: "Cart contains products of multiple types. Please order one type at a time.",
-      //   });
-      // }
-
-      const [orderType] = productTypes;
-
-      // Calculate prices and create order products array
+      // Calculate order details
       const orderProducts = cart.products.map((item) => {
-        const currentPrice =
-          item.product.discountedPrice && item.product.discountedPrice < item.product.originalPrice
-            ? item.product.discountedPrice
-            : item.product.originalPrice;
+        const currentPrice = item.product.discountedPrice && 
+          item.product.discountedPrice < item.product.originalPrice
+          ? item.product.discountedPrice 
+          : item.product.originalPrice;
 
         return {
           product: item.product._id,
@@ -226,55 +124,94 @@ const userController = {
         };
       });
 
-      // Calculate total amount
       const totalAmount = orderProducts.reduce((total, item) => {
         return total + item.price * item.quantity;
       }, 0);
 
-      // Create the order
-      const order = new Order({
-        user: userId,
-        products: orderProducts,
-        totalAmount,
-        paymentMethod,
-        type: orderType, // Set the order type
-        shippingAddress: user.customerDetails.address,
-        firmName: user.customerDetails.firmName,
-        gstNumber: user.customerDetails.gstNumber,
-        paymentStatus: paymentMethod === "COD" ? "pending" : "completed",
-        orderStatus: "pending",
-        statusHistory: [
-          {
-            status: "pending",
+      // Handle COD orders directly
+      if (paymentMethod === 'COD') {
+        const order = new Order({
+          user: userId,
+          products: orderProducts,
+          totalAmount,
+          paymentMethod: 'COD',
+          type: [...productTypes][0], // Get the first product type
+          shippingAddress: user.customerDetails.address,
+          firmName: user.customerDetails.firmName,
+          gstNumber: user.customerDetails.gstNumber,
+          paymentStatus: 'pending',
+          orderStatus: 'pending',
+          statusHistory: [{
+            status: 'pending',
             updatedBy: userId,
-            updatedAt: new Date(),
-          },
-        ],
-      });
+            updatedAt: new Date()
+          }]
+        });
 
-      await order.save();
+        await order.save();
 
-      // Update product quantities and clear cart
-      for (const item of cart.products) {
-        await Product.findByIdAndUpdate(
-          item.product._id,
-          { $inc: { quantity: -item.quantity } },
-          { new: true }
-        );
+        // Update product quantities
+        for (const item of cart.products) {
+          await Product.findByIdAndUpdate(
+            item.product._id,
+            { $inc: { quantity: -item.quantity } }
+          );
+        }
+
+        // Clear cart
+        await Cart.findByIdAndDelete(cart._id);
+
+        return res.status(201).json({
+          success: true,
+          message: "COD order placed successfully",
+          order
+        });
       }
 
-      await Cart.findByIdAndDelete(cart._id);
-
-      res.status(201).json({
-        message: "Order created successfully.",
-        order,
+      // Handle online payment methods
+      // Generate a shorter receipt ID (max 40 chars)
+      const timestamp = Date.now().toString().slice(-8);
+      const shortUserId = userId.toString().slice(-4);
+      const receiptId = `rcpt_${timestamp}_${shortUserId}`;
+      
+      // Create Razorpay order
+      const razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(totalAmount * 100), // Convert to paise
+        currency: 'INR',
+        receipt: receiptId,
+        notes: {
+          userId: userId.toString(),
+          cartId: cart._id.toString(),
+          paymentMethod,
+          productType: [...productTypes][0]
+        }
       });
+
+      res.status(200).json({
+        success: true,
+        orderId: razorpayOrder.id,
+        amount: totalAmount,
+        currency: 'INR',
+        keyId: process.env.RAZORPAY_KEY_ID,
+        cartDetails: {
+          items: cart.products.length,
+          total: totalAmount
+        },
+        userDetails: {
+          name: user.name,
+          email: user.email,
+          phone: user.phoneNumber
+        }
+      });
+
     } catch (error) {
       console.error("Order creation error:", error);
-      res.status(500).json({ error: "Error creating order", details: error.message });
+      res.status(500).json({
+        error: "Error creating order",
+        details: error.message
+      });
     }
   },
-
 
   getOrderHistory: async (req, res) => {
     try {
