@@ -29,4 +29,8 @@ router.get('/challan/:id', dispatchController.getChallanById);
 router.get('/orders/processing', dispatchController.getProcessingOrders);
 router.patch('/orders/:orderId/status', dispatchController.updateOrderStatus);
 
+router.post('/check-in',  dispatchController.checkIn);
+router.post('/check-out', dispatchController.checkOut);
+router.get('/daily-orders', dispatchController.getDailyDispatchOrders);
+
 module.exports = router;

@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const fs = require('fs').promises;
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const Attendance = require('../models/Attendance')
 
 
 const generateUserCode = async () => {
@@ -293,6 +294,136 @@ const receptionController = {
       res.status(500).json({ error: 'Error updating order status' });
     }
   },
+
+
+
+// Check-in functionality
+checkIn: async (req, res) => {
+  try {
+    // Check if user is already checked in today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingAttendance = await Attendance.findOne({
+      user: req.user._id,
+      panel: 'reception',
+      date: { $gte: today },
+      status: 'checked-in'
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({ 
+        error: 'You are already checked in today' 
+      });
+    }
+
+    // Create new attendance record
+    const attendance = new Attendance({
+      user: req.user._id,
+      panel: 'reception',
+      checkInTime: new Date(),
+      date: new Date(),
+      status: 'checked-in'
+    });
+
+    await attendance.save();
+
+    res.json({ 
+      message: 'Check-in successful', 
+      attendance 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error during check-in', 
+      details: error.message 
+    });
+  }
+},
+
+// Check-out functionality
+checkOut: async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the active check-in for today
+    const attendance = await Attendance.findOne({
+      user: req.user._id,
+      panel: 'reception',
+      date: { $gte: today },
+      status: 'checked-in'
+    });
+
+    if (!attendance) {
+      return res.status(400).json({ 
+        error: 'No active check-in found' 
+      });
+    }
+
+    // Update check-out time
+    attendance.checkOutTime = new Date();
+    attendance.status = 'checked-out';
+    await attendance.save();
+
+    res.json({ 
+      message: 'Check-out successful', 
+      attendance 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error during check-out', 
+      details: error.message 
+    });
+  }
+},
+
+// Admin get attendance
+getAttendance: async (req, res) => {
+  try {
+    const { startDate, endDate, panel, userId } = req.query;
+
+    let query = {};
+
+    // Add date range filter
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Add panel filter
+    if (panel) {
+      query.panel = panel;
+    }
+
+    // Add user filter
+    if (userId) {
+      query.user = userId;
+    }
+
+    const attendance = await Attendance.find(query)
+      .populate('user', 'name email customerDetails.firmName')
+      .sort({ date: -1 });
+
+    // Calculate summary statistics
+    const summary = {
+      totalRecords: attendance.length,
+      totalHours: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0),
+      averageHoursPerDay: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0) / (attendance.length || 1)
+    };
+
+    res.json({ 
+      attendance, 
+      summary 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error fetching attendance', 
+      details: error.message 
+    });
+  }
+}
 
 };
 

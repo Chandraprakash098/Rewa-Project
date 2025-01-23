@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const MarketingActivity = require('../models/MarketingActivity');
+const Attendance = require('../models/Attendance')
 
 const adminController = {
   
@@ -592,6 +593,100 @@ reviewMarketingActivity: async (req, res) => {
   } catch (error) {
     console.error('Error reviewing marketing activity:', error);
     res.status(500).json({ error: 'Error reviewing marketing activity' });
+  }
+},
+
+
+
+//For panels Attendance except user
+
+getAllAttendance: async (req, res) => {
+  try {
+    const { startDate, endDate, panel, userId } = req.query;
+
+    let query = {};
+
+    // Add date range filter
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Add panel filter
+    if (panel) {
+      query.panel = panel;
+    }
+
+    // Add user filter
+    if (userId) {
+      query.user = userId;
+    }
+
+    const attendance = await Attendance.find(query)
+      .populate('user', 'name email customerDetails.firmName panel')
+      .sort({ date: -1 });
+
+    // Calculate summary statistics
+    const summary = {
+      totalRecords: attendance.length,
+      totalHours: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0),
+      averageHoursPerDay: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0) / (attendance.length || 1),
+      byPanel: attendance.reduce((acc, record) => {
+        acc[record.panel] = (acc[record.panel] || 0) + 1;
+        return acc;
+      }, {})
+    };
+
+    res.json({ 
+      attendance, 
+      summary 
+    });
+  } catch (error) {
+    console.error('Error fetching attendance:', error);
+    res.status(500).json({ error: 'Error fetching attendance' });
+  }
+},
+
+// Get summary of attendance for dashboard
+getAttendanceSummary: async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const summary = {
+      todayCheckIns: await Attendance.countDocuments({
+        date: { $gte: today },
+        status: 'checked-in'
+      }),
+      todayCheckOuts: await Attendance.countDocuments({
+        date: { $gte: today },
+        status: 'checked-out'
+      }),
+      activeUsers: await Attendance.distinct('user', {
+        date: { $gte: today },
+        status: 'checked-in'
+      }),
+      panelBreakdown: await Attendance.aggregate([
+        { 
+          $match: { 
+            date: { $gte: today } 
+          } 
+        },
+        { 
+          $group: { 
+            _id: '$panel', 
+            count: { $sum: 1 } 
+          } 
+        }
+      ])
+    };
+
+    res.json({ summary });
+  } catch (error) {
+    console.error('Error fetching attendance summary:', error);
+    res.status(500).json({ error: 'Error fetching attendance summary' });
   }
 }
 

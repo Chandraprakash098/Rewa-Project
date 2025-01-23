@@ -118,6 +118,107 @@ class StockController {
             });
         }
     }
+
+
+
+async checkIn(req, res) {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const existingAttendance = await Attendance.findOne({
+            user: req.user._id,
+            panel: 'stock',
+            date: { $gte: today },
+            status: 'checked-in'
+        });
+
+        if (existingAttendance) {
+            return res.status(400).json({ 
+                error: 'You are already checked in today' 
+            });
+        }
+
+        // Create new attendance record
+        const attendance = new Attendance({
+            user: req.user._id,
+            panel: 'stock',
+            checkInTime: new Date(),
+            date: new Date(),
+            status: 'checked-in'
+        });
+
+        await attendance.save();
+
+        res.json({ 
+            message: 'Stock Check-in successful', 
+            attendance 
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: 'Error during stock check-in', 
+            details: error.message 
+        });
+    }
+}
+
+// Check-out functionality
+async checkOut(req, res) {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const attendance = await Attendance.findOne({
+            user: req.user._id,
+            panel: 'stock',
+            date: { $gte: today },
+            status: 'checked-in'
+        });
+
+        if (!attendance) {
+            return res.status(400).json({ 
+                error: 'No active check-in found' 
+            });
+        }
+
+        // Update check-out time
+        attendance.checkOutTime = new Date();
+        attendance.status = 'checked-out';
+        await attendance.save();
+
+        res.json({ 
+            message: 'Stock Check-out successful', 
+            attendance 
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: 'Error during stock check-out', 
+            details: error.message 
+        });
+    }
+}
+
+// Get stock update history for the day
+async getDailyStockUpdates(req, res) {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const stockUpdates = await Stock.find({
+            'updateHistory.updatedAt': { $gte: today },
+            'updateHistory.updatedBy': req.user._id
+        }).populate('productId', 'name');
+
+        res.json({ 
+            dailyStockUpdates: stockUpdates 
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: 'Error fetching daily stock updates', 
+            details: error.message 
+        });
+    }
+}
 }
 
 module.exports = new StockController();

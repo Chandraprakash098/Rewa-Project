@@ -16,4 +16,9 @@ router.post('/activities',
 router.get('/activities', marketingController.getMyActivities);
 router.get('/activities/:activityId', marketingController.getActivityById);
 
+
+// router.post('/marketing/check-in', marketingController.checkIn);
+// router.post('/marketing/check-out',  marketingController.checkOut);
+// router.get('/marketing/daily-activities',  marketingController.getDailyActivities);
+
 module.exports = router;

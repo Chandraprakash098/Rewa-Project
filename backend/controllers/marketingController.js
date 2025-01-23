@@ -89,4 +89,6 @@ const marketingController = {
   }
 };
 
+
+
 module.exports = marketingController;

@@ -15,4 +15,8 @@ router.put('/update-quantity', stockController.updateQuantity);
 // Get stock history for a specific product
 router.get('/history/:productId', stockController.getStockHistory);
 
+router.post('/check-in', stockController.checkIn);
+router.post('/check-out',  stockController.checkOut);
+router.get('/daily-updates',  stockController.getDailyStockUpdates);
+
 module.exports = router;
