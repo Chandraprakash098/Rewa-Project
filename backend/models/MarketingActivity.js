@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 const marketingActivitySchema = new mongoose.Schema({
@@ -18,6 +19,10 @@ const marketingActivitySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  images: [{
+    type: String, // Cloudinary URL
+    required: false
+  }],
   status: {
     type: String,
     enum: ['pending', 'reviewed'],

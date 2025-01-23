@@ -595,7 +595,6 @@ reviewMarketingActivity: async (req, res) => {
   }
 }
 
-
 };
 
 
