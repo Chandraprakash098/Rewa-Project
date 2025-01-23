@@ -1,5 +1,6 @@
 const Stock = require('../models/Stock');
 const Product = require('../models/Product');
+const Attendance = require('../models/Attendance')
 
 class StockController {
     // Get all products with their quantities
