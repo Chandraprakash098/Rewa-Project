@@ -59,11 +59,120 @@ const userController = {
 
 
 
+  // createOrder: async (req, res) => {
+  //   try {
+  //     const userId = req.user._id;
+  //     const { paymentMethod } = req.body;
+
+  //     // Validate payment method
+  //     const validPaymentMethods = ['UPI', 'netBanking', 'debitCard', 'COD'];
+  //     if (!validPaymentMethods.includes(paymentMethod)) {
+  //       return res.status(400).json({
+  //         error: 'Invalid payment method',
+  //         validMethods: validPaymentMethods
+  //       });
+  //     }
+
+  //     // Validate user and address
+  //     const user = await User.findById(userId);
+  //     if (!user?.customerDetails?.address) {
+  //       return res.status(400).json({
+  //         error: "No address found. Please update your profile with a valid address.",
+  //       });
+  //     }
+
+  //     // Get cart with populated product details
+  //     const cart = await Cart.findOne({ user: userId }).populate("products.product");
+  //     if (!cart || !cart.products.length) {
+  //       return res.status(400).json({ error: "Cart is empty" });
+  //     }
+
+  //     // Validate stock and ensure products are active
+  //     const productTypes = new Set();
+  //     for (const cartItem of cart.products) {
+  //       const product = await Product.findById(cartItem.product._id);
+
+  //       if (!product || !product.isActive) {
+  //         return res.status(400).json({ 
+  //           error: `Product not found or inactive: ${cartItem.product.name}` 
+  //         });
+  //       }
+
+  //       if (product.quantity < cartItem.quantity) {
+  //         return res.status(400).json({
+  //           error: `Not enough stock for ${product.name}`,
+  //           product: product.name,
+  //           availableStock: product.quantity,
+  //           requestedQuantity: cartItem.quantity,
+  //         });
+  //       }
+
+  //       productTypes.add(product.type);
+  //     }
+
+  //     // Calculate order details
+  //     const orderProducts = cart.products.map((item) => {
+  //       const currentPrice = item.product.discountedPrice && 
+  //         item.product.discountedPrice < item.product.originalPrice
+  //         ? item.product.discountedPrice 
+  //         : item.product.originalPrice;
+
+  //       return {
+  //         product: item.product._id,
+  //         quantity: item.quantity,
+  //         price: currentPrice,
+  //       };
+  //     });
+
+  //     const totalAmount = orderProducts.reduce((total, item) => {
+  //       return total + item.price * item.quantity;
+  //     }, 0);
+
+  //     // Handle COD orders directly
+  //     if (paymentMethod === 'COD') {
+  //       const order = new Order({
+  //         user: userId,
+  //         products: orderProducts,
+  //         totalAmount,
+  //         paymentMethod: 'COD',
+  //         type: [...productTypes][0], // Get the first product type
+  //         shippingAddress: user.customerDetails.address,
+  //         firmName: user.customerDetails.firmName,
+  //         gstNumber: user.customerDetails.gstNumber,
+  //         paymentStatus: 'pending',
+  //         orderStatus: 'pending',
+  //         statusHistory: [{
+  //           status: 'pending',
+  //           updatedBy: userId,
+  //           updatedAt: new Date()
+  //         }]
+  //       });
+
+  //       await order.save();
+
+  //       // Update product quantities
+  //       for (const item of cart.products) {
+  //         await Product.findByIdAndUpdate(
+  //           item.product._id,
+  //           { $inc: { quantity: -item.quantity } }
+  //         );
+  //       }
+
+  //       // Clear cart
+  //       await Cart.findByIdAndDelete(cart._id);
+
+  //       return res.status(201).json({
+  //         success: true,
+  //         message: "COD order placed successfully",
+  //         order
+  //       });
+  //     }
+
   createOrder: async (req, res) => {
     try {
       const userId = req.user._id;
       const { paymentMethod } = req.body;
-
+  
       // Validate payment method
       const validPaymentMethods = ['UPI', 'netBanking', 'debitCard', 'COD'];
       if (!validPaymentMethods.includes(paymentMethod)) {
@@ -72,7 +181,7 @@ const userController = {
           validMethods: validPaymentMethods
         });
       }
-
+  
       // Validate user and address
       const user = await User.findById(userId);
       if (!user?.customerDetails?.address) {
@@ -80,24 +189,24 @@ const userController = {
           error: "No address found. Please update your profile with a valid address.",
         });
       }
-
+  
       // Get cart with populated product details
       const cart = await Cart.findOne({ user: userId }).populate("products.product");
       if (!cart || !cart.products.length) {
         return res.status(400).json({ error: "Cart is empty" });
       }
-
+  
       // Validate stock and ensure products are active
       const productTypes = new Set();
       for (const cartItem of cart.products) {
         const product = await Product.findById(cartItem.product._id);
-
+  
         if (!product || !product.isActive) {
           return res.status(400).json({ 
             error: `Product not found or inactive: ${cartItem.product.name}` 
           });
         }
-
+  
         if (product.quantity < cartItem.quantity) {
           return res.status(400).json({
             error: `Not enough stock for ${product.name}`,
@@ -106,34 +215,36 @@ const userController = {
             requestedQuantity: cartItem.quantity,
           });
         }
-
+  
         productTypes.add(product.type);
       }
-
+  
       // Calculate order details
       const orderProducts = cart.products.map((item) => {
         const currentPrice = item.product.discountedPrice && 
           item.product.discountedPrice < item.product.originalPrice
           ? item.product.discountedPrice 
           : item.product.originalPrice;
-
+  
         return {
           product: item.product._id,
           quantity: item.quantity,
           price: currentPrice,
         };
       });
-
+  
       const totalAmount = orderProducts.reduce((total, item) => {
         return total + item.price * item.quantity;
       }, 0);
-
+  
       // Handle COD orders directly
       if (paymentMethod === 'COD') {
         const order = new Order({
           user: userId,
           products: orderProducts,
           totalAmount,
+          totalAmountWithDelivery: totalAmount, // Explicitly set the required field
+          deliveryCharge: 0, // Explicitly set delivery charge to 0
           paymentMethod: 'COD',
           type: [...productTypes][0], // Get the first product type
           shippingAddress: user.customerDetails.address,
@@ -147,9 +258,9 @@ const userController = {
             updatedAt: new Date()
           }]
         });
-
+  
         await order.save();
-
+  
         // Update product quantities
         for (const item of cart.products) {
           await Product.findByIdAndUpdate(
@@ -157,10 +268,10 @@ const userController = {
             { $inc: { quantity: -item.quantity } }
           );
         }
-
+  
         // Clear cart
         await Cart.findByIdAndDelete(cart._id);
-
+  
         return res.status(201).json({
           success: true,
           message: "COD order placed successfully",

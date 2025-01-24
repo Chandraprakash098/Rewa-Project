@@ -274,6 +274,8 @@ const paymentController = {
           user: userId,
           products: orderProducts,
           totalAmount,
+          totalAmountWithDelivery: totalAmount, // Add this line
+          deliveryCharge: 0, // Add this line to explicitly set delivery charge to 0
           paymentMethod: 'COD',
           type: [...productTypes][0],
           shippingAddress: user.customerDetails.address,

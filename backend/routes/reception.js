@@ -16,6 +16,8 @@ router.get('/users/search', receptionController.searchUsers);
 router.get('/orders/user/:userCode', receptionController.getOrdersByUser);
 router.post('/orders', receptionController.createOrderForUser);
 
+// New route for adding delivery charge
+router.post('/orders/add-delivery-charge', receptionController.addDeliveryCharge);
 
 
 //new

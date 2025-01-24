@@ -157,20 +157,76 @@ const receptionController = {
     }
   },
 
+  // createOrderForUser: async (req, res) => {
+  //   try {
+  //     const { userCode, products, paymentMethod } = req.body;
+
+  //     // Find user by userCode
+  //     const user = await User.findOne({ 'customerDetails.userCode': userCode });
+  //     if (!user) {
+  //       return res.status(404).json({ error: 'User not found' });
+  //     }
+
+  //     // Calculate total and verify products
+  //     let totalAmount = 0;
+  //     const orderProducts = [];
+
+  //     for (const item of products) {
+  //       const product = await Product.findById(item.productId);
+  //       if (!product) {
+  //         return res.status(404).json({ 
+  //           error: `Product not found: ${item.productId}` 
+  //         });
+  //       }
+  //       if (product.quantity < item.quantity) {
+  //         return res.status(400).json({ 
+  //           error: `Insufficient stock for ${product.name}` 
+  //         });
+  //       }
+
+  //       const price = product.isOffer ? product.offerPrice : product.price;
+  //       totalAmount += price * item.quantity;
+
+  //       orderProducts.push({
+  //         product: product._id,
+  //         quantity: item.quantity,
+  //         price: price
+  //       });
+
+  //       // Update product quantity
+  //       product.quantity -= item.quantity;
+  //       await product.save();
+  //     }
+
+  //     const order = new Order({
+  //       user: user._id,
+  //       products: orderProducts,
+  //       totalAmount,
+  //       paymentMethod,
+  //       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed'
+  //     });
+
+  //     await order.save();
+  //     res.status(201).json({ order });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error creating order' });
+  //   }
+  // },
+
   createOrderForUser: async (req, res) => {
     try {
       const { userCode, products, paymentMethod } = req.body;
-
+  
       // Find user by userCode
       const user = await User.findOne({ 'customerDetails.userCode': userCode });
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-
+  
       // Calculate total and verify products
       let totalAmount = 0;
       const orderProducts = [];
-
+  
       for (const item of products) {
         const product = await Product.findById(item.productId);
         if (!product) {
@@ -183,35 +239,42 @@ const receptionController = {
             error: `Insufficient stock for ${product.name}` 
           });
         }
-
+  
         const price = product.isOffer ? product.offerPrice : product.price;
         totalAmount += price * item.quantity;
-
+  
         orderProducts.push({
           product: product._id,
           quantity: item.quantity,
           price: price
         });
-
+  
         // Update product quantity
         product.quantity -= item.quantity;
         await product.save();
       }
-
+  
       const order = new Order({
         user: user._id,
         products: orderProducts,
         totalAmount,
+        totalAmountWithDelivery: totalAmount, // Initially set to total amount
         paymentMethod,
-        paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed'
+        shippingAddress: user.customerDetails.address,
+        firmName: user.customerDetails.firmName,
+        gstNumber: user.customerDetails.gstNumber,
+        type: orderProducts[0].product.type, // Get the type of the first product
+        paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+        orderStatus: 'pending'
       });
-
+  
       await order.save();
       res.status(201).json({ order });
     } catch (error) {
       res.status(500).json({ error: 'Error creating order' });
     }
   },
+
 
   getOrderHistory: async (req, res) => {
     try {
@@ -423,7 +486,51 @@ getAttendance: async (req, res) => {
       details: error.message 
     });
   }
-}
+},
+addDeliveryCharge: async (req, res) => {
+  try {
+    const { orderId, deliveryCharge } = req.body;
+
+    // Validate input
+    if (!orderId || deliveryCharge === undefined || deliveryCharge < 0) {
+      return res.status(400).json({ 
+        error: 'Invalid order ID or delivery charge' 
+      });
+    }
+
+    // Find the order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Check order status
+    if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
+      return res.status(400).json({ 
+        error: 'Can only add delivery charge to pending or preview orders' 
+      });
+    }
+
+    // Update order with delivery charge
+    order.deliveryCharge = deliveryCharge;
+    order.totalAmountWithDelivery = order.totalAmount + deliveryCharge;
+    order.deliveryChargeAddedBy = req.user._id;
+    order.orderStatus = 'processing'; // Move to processing after adding delivery charge
+
+    await order.save();
+
+    res.json({ 
+      message: 'Delivery charge added successfully', 
+      order 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error adding delivery charge', 
+      details: error.message 
+    });
+  }
+},
+
 
 };
 
