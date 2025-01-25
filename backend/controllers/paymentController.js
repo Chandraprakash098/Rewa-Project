@@ -361,8 +361,22 @@ const paymentController = {
         .update(sign)
         .digest('hex');
 
+        // Log for debugging
+    console.log('Received Signature:', razorpay_signature);
+    console.log('Expected Signature:', expectedSign);
+
+      // if (razorpay_signature !== expectedSign) {
+      //   return res.status(400).json({ error: 'Invalid payment signature' });
+      // }
+
       if (razorpay_signature !== expectedSign) {
-        return res.status(400).json({ error: 'Invalid payment signature' });
+        return res.status(400).json({ 
+          error: 'Invalid payment signature',
+          details: {
+            received: razorpay_signature,
+            expected: expectedSign
+          }
+        });
       }
 
       const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
