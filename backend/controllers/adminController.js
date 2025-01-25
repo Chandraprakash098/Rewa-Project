@@ -156,14 +156,6 @@ const adminController = {
     }
   },
 
-  // getAllProducts :async (req, res) => {
-  //   try {
-  //     const products = await Product.find({});
-  //     res.json({ products });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error fetching products' });
-  //   }
-  // },
 
   getAllProducts : async (req, res) => {
       try {
@@ -201,54 +193,6 @@ const adminController = {
     }
   },
 
-  // updateProduct: async (req, res) => {
-  //   try {
-  //     const updates = {
-  //       ...req.body,
-  //       originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
-  //       discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null
-  //     };
-
-  //     // Update isOffer based on whether there's a valid discount
-  //     if (updates.originalPrice || updates.discountedPrice) {
-  //       const currentProduct = await Product.findById(req.params.productId);
-  //       const finalOriginalPrice = updates.originalPrice || currentProduct.originalPrice;
-  //       const finalDiscountedPrice = updates.discountedPrice;
-        
-  //       updates.isOffer = Boolean(finalDiscountedPrice && finalDiscountedPrice < finalOriginalPrice);
-  //     }
-      
-  //     if (req.file) {
-  //       const b64 = Buffer.from(req.file.buffer).toString('base64');
-  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        
-  //       const result = await cloudinary.uploader.upload(dataURI, {
-  //         folder: 'products',
-  //         resource_type: 'auto'
-  //       });
-        
-  //       updates.image = result.secure_url;
-        
-  //       const oldProduct = await Product.findById(req.params.productId);
-  //       if (oldProduct && oldProduct.image) {
-  //         const publicId = oldProduct.image.split('/').pop().split('.')[0];
-  //         await cloudinary.uploader.destroy(`products/${publicId}`);
-  //       }
-  //     }
-
-  //     const product = await Product.findByIdAndUpdate(
-  //       req.params.productId,
-  //       updates,
-  //       { new: true }
-  //     );
-
-  //     if (!product) return res.status(404).json({ error: 'Product not found' });
-  //     res.json({ product });
-  //   } catch (error) {
-  //     console.error('Error updating product:', error);
-  //     res.status(500).json({ error: 'Error updating product' });
-  //   }
-  // },
 
   updateProduct: async (req, res) => {
     try {
@@ -318,7 +262,7 @@ const adminController = {
       const orders = await Order.find({
         orderStatus: 'preview'
       })
-      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+      .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
       .populate('products.product')
       .populate('statusHistory.updatedBy', 'name role')
       .sort({ createdAt: -1 });
@@ -350,27 +294,6 @@ const adminController = {
 
   
 
-  // getAllOrders: async (req, res) => {
-  //   try {
-  //     const { type } = req.query;
-  //     const query = {};
-
-  //     if (type) {
-  //       query.type = type; // Filter by type if provided
-  //     }
-
-  //     const orders = await Order.find(query)
-  //       .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt')
-  //       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-  //       .populate('products.product', 'name type')
-  //       .sort({ createdAt: -1 });
-
-  //     res.json({ orders });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error fetching orders' });
-  //   }
-  // },
-
   getAllOrders : async (req, res) => {
     try {
       const { type } = req.query;
@@ -385,7 +308,7 @@ const adminController = {
   
       const orders = await Order.find(query)
         .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
-        .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+        .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type')
         .sort({ createdAt: -1 });
   
@@ -447,35 +370,6 @@ const adminController = {
 
 
 
-
-// getDashboardStats : async (req, res) => {
-//   try {
-//     const stats = {
-//       users: {
-//         total: await User.countDocuments({ role: 'user' }),
-//         active: await User.countDocuments({ role: 'user', isActive: true }),
-//         inactive: await User.countDocuments({ role: 'user', isActive: false })
-//       },
-//       products: {
-//         total: await Product.countDocuments(),
-//         bottles: await Product.countDocuments({ type: 'Bottle' }),
-//         rawMaterials: await Product.countDocuments({ type: 'Raw Material' })
-//       },
-//       orders: {
-//         pending: await Order.countDocuments({ orderStatus: 'processing' }),
-//         confirmed: await Order.countDocuments({ orderStatus: 'confirmed' }),
-//         shipped: await Order.countDocuments({ orderStatus: 'shipped' }),
-//         delivered: await Order.countDocuments({ orderStatus: 'delivered' }),
-//         cancelled: await Order.countDocuments({ orderStatus: 'cancelled' })
-//       }
-//     };
-
-//     res.json({ stats });
-//   } catch (error) {
-//     console.error('Error fetching dashboard stats:', error);
-//     res.status(500).json({ error: 'Error fetching dashboard stats' });
-//   }
-// },
 
 getDashboardStats : async (req, res) => {
   try {
@@ -600,9 +494,100 @@ reviewMarketingActivity: async (req, res) => {
 
 //For panels Attendance except user
 
+// getAllAttendance: async (req, res) => {
+//   try {
+//     const { startDate, endDate, panel, userId } = req.query;
+
+//     let query = {};
+
+//     // Add date range filter
+//     if (startDate && endDate) {
+//       query.date = {
+//         $gte: new Date(startDate),
+//         $lte: new Date(endDate)
+//       };
+//     }
+
+//     // Add panel filter
+//     if (panel) {
+//       query.panel = panel;
+//     }
+
+//     // Add user filter
+//     if (userId) {
+//       query.user = userId;
+//     }
+
+//     const attendance = await Attendance.find(query)
+//       .populate('user', 'name email customerDetails.firmName panel')
+//       .sort({ date: -1 });
+
+//     // Calculate summary statistics
+//     const summary = {
+//       totalRecords: attendance.length,
+//       totalHours: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0),
+//       averageHoursPerDay: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0) / (attendance.length || 1),
+//       byPanel: attendance.reduce((acc, record) => {
+//         acc[record.panel] = (acc[record.panel] || 0) + 1;
+//         return acc;
+//       }, {})
+//     };
+
+//     res.json({ 
+//       attendance, 
+//       summary 
+//     });
+//   } catch (error) {
+//     console.error('Error fetching attendance:', error);
+//     res.status(500).json({ error: 'Error fetching attendance' });
+//   }
+// },
+
+// // Get summary of attendance for dashboard
+// getAttendanceSummary: async (req, res) => {
+//   try {
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     const summary = {
+//       todayCheckIns: await Attendance.countDocuments({
+//         date: { $gte: today },
+//         status: 'checked-in'
+//       }),
+//       todayCheckOuts: await Attendance.countDocuments({
+//         date: { $gte: today },
+//         status: 'checked-out'
+//       }),
+//       activeUsers: await Attendance.distinct('user', {
+//         date: { $gte: today },
+//         status: 'checked-in'
+//       }),
+//       panelBreakdown: await Attendance.aggregate([
+//         { 
+//           $match: { 
+//             date: { $gte: today } 
+//           } 
+//         },
+//         { 
+//           $group: { 
+//             _id: '$panel', 
+//             count: { $sum: 1 } 
+//           } 
+//         }
+//       ])
+//     };
+
+//     res.json({ summary });
+//   } catch (error) {
+//     console.error('Error fetching attendance summary:', error);
+//     res.status(500).json({ error: 'Error fetching attendance summary' });
+//   }
+// }
+
+
 getAllAttendance: async (req, res) => {
   try {
-    const { startDate, endDate, panel, userId } = req.query;
+    const { startDate, endDate, panel, userId, includeImages } = req.query;
 
     let query = {};
 
@@ -624,8 +609,20 @@ getAllAttendance: async (req, res) => {
       query.user = userId;
     }
 
+    // Prepare population and projection
+    let populateOptions = {
+      path: 'user', 
+      select: 'name email customerDetails.firmName panel'
+    };
+
+    // If includeImages is true, we'll include the checkInImage
+    let selectOptions = includeImages 
+      ? 'user panel checkInTime checkOutTime date totalHours status checkInImage' 
+      : 'user panel checkInTime checkOutTime date totalHours status';
+
     const attendance = await Attendance.find(query)
-      .populate('user', 'name email customerDetails.firmName panel')
+      .populate(populateOptions)
+      .select(selectOptions)
       .sort({ date: -1 });
 
     // Calculate summary statistics
@@ -645,7 +642,7 @@ getAllAttendance: async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching attendance:', error);
-    res.status(500).json({ error: 'Error fetching attendance' });
+    res.status(500).json({ error: 'Error fetching attendance', details: error.message });
   }
 },
 
@@ -680,13 +677,60 @@ getAttendanceSummary: async (req, res) => {
             count: { $sum: 1 } 
           } 
         }
-      ])
+      ]),
+      // New method to get check-in images for today
+      todayCheckInImages: await Attendance.find({
+        date: { $gte: today },
+        checkInImage: { $ne: null }
+      }).select('user checkInImage date panel')
+      .populate('user', 'name')
     };
 
     res.json({ summary });
   } catch (error) {
     console.error('Error fetching attendance summary:', error);
-    res.status(500).json({ error: 'Error fetching attendance summary' });
+    res.status(500).json({ error: 'Error fetching attendance summary', details: error.message });
+  }
+},
+
+// New method to get check-in images
+getCheckInImages: async (req, res) => {
+  try {
+    const { startDate, endDate, panel, userId } = req.query;
+
+    let query = {
+      checkInImage: { $ne: null }
+    };
+
+    // Add date range filter
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Add panel filter
+    if (panel) {
+      query.panel = panel;
+    }
+
+    // Add user filter
+    if (userId) {
+      query.user = userId;
+    }
+
+    const checkInImages = await Attendance.find(query)
+      .select('user checkInImage date panel')
+      .populate('user', 'name email');
+
+    res.json({ 
+      checkInImages,
+      total: checkInImages.length
+    });
+  } catch (error) {
+    console.error('Error fetching check-in images:', error);
+    res.status(500).json({ error: 'Error fetching check-in images', details: error.message });
   }
 }
 

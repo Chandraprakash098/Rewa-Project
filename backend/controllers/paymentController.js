@@ -310,6 +310,7 @@ const paymentController = {
         amount: Math.round(totalAmount * 100),
         currency: 'INR',
         receipt: receiptId,
+        payment_capture: 1,
         notes: {
           userId: userId.toString(),
           cartId: cart._id.toString(),
@@ -346,6 +347,7 @@ const paymentController = {
 
   verifyPayment: async (req, res) => {
     try {
+      console.log('Payment Verification Request Body:', req.body);
       const {
         razorpay_order_id,
         razorpay_payment_id,
@@ -417,10 +419,13 @@ const paymentController = {
         message: 'Payment verified and order created successfully'
       });
     } catch (error) {
-      console.error('Payment Verification Error:', error);
-      res.status(500).json({ error: 'Error verifying payment' });
-    }
-  }
+      console.error('Full Payment Verification Error:', error);
+      res.status(500).json({ 
+        error: 'Error verifying payment',
+        details: error.message,
+        fullError: error
+      });
+    }}
 };
 
 module.exports = paymentController;

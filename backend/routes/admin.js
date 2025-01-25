@@ -35,5 +35,7 @@ router.patch('/marketing-activities/:activityId/review', adminController.reviewM
 
 router.get('/attendance', adminController.getAllAttendance);
 router.get('/attendance-summary', adminController.getAttendanceSummary);
+// Add this to adminRoutes.js
+router.get('/check-in-images', adminController.getCheckInImages);
 
 module.exports = router;
