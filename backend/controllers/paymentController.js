@@ -345,49 +345,168 @@ const paymentController = {
     }
   },
 
+  // verifyPayment: async (req, res) => {
+  //   try {
+  //     console.log('Payment Verification Request Body:', req.body);
+  //     const {
+  //       razorpay_order_id,
+  //       razorpay_payment_id,
+  //       razorpay_signature
+  //     } = req.body;
+
+  //     // Validate signature
+  //     const sign = razorpay_order_id + '|' + razorpay_payment_id;
+  //     const expectedSign = crypto
+  //       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+  //       .update(sign)
+  //       .digest('hex');
+
+  //       // Log for debugging
+  //   console.log('Received Signature:', razorpay_signature);
+  //   console.log('Expected Signature:', expectedSign);
+
+  //     // if (razorpay_signature !== expectedSign) {
+  //     //   return res.status(400).json({ error: 'Invalid payment signature' });
+  //     // }
+
+  //     if (razorpay_signature !== expectedSign) {
+  //       return res.status(400).json({ 
+  //         error: 'Invalid payment signature',
+  //         details: {
+  //           received: razorpay_signature,
+  //           expected: expectedSign
+  //         }
+  //       });
+  //     }
+
+  //     const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+  //     const { userId, cartId, paymentMethod, productType } = razorpayOrder.notes;
+
+  //     // Get cart and create order
+  //     const cart = await Cart.findById(cartId).populate('products.product');
+  //     if (!cart) {
+  //       return res.status(400).json({ error: 'Cart not found' });
+  //     }
+
+  //     // Create order and payment records
+  //     const order = new Order({
+  //       user: userId,
+  //       products: cart.products.map(item => ({
+  //         product: item.product._id,
+  //         quantity: item.quantity,
+  //         price: item.product.discountedPrice || item.product.originalPrice
+  //       })),
+  //       totalAmount: razorpayOrder.amount / 100,
+  //       paymentMethod,
+  //       type: productType,
+  //       shippingAddress: req.user.customerDetails.address,
+  //       firmName: req.user.customerDetails.firmName,
+  //       gstNumber: req.user.customerDetails.gstNumber,
+  //       paymentStatus: 'completed',
+  //       orderStatus: 'processing'
+  //     });
+
+  //     await order.save();
+
+  //     const payment = new Payment({
+  //       user: userId,
+  //       amount: razorpayOrder.amount / 100,
+  //       paymentIntentId: razorpay_payment_id,
+  //       status: 'completed'
+  //     });
+  //     await payment.save();
+
+  //     // Update product quantities
+  //     for (const item of cart.products) {
+  //       await Product.findByIdAndUpdate(
+  //         item.product._id,
+  //         { $inc: { quantity: -item.quantity } }
+  //       );
+  //     }
+
+  //     // Clear cart
+  //     await Cart.findByIdAndDelete(cartId);
+
+  //     res.json({
+  //       success: true,
+  //       orderId: order._id,
+  //       message: 'Payment verified and order created successfully'
+  //     });
+  //   } catch (error) {
+  //     console.error('Full Payment Verification Error:', error);
+  //     res.status(500).json({ 
+  //       error: 'Error verifying payment',
+  //       details: error.message,
+  //       fullError: error
+  //     });
+  //   }}
+
+
+
   verifyPayment: async (req, res) => {
     try {
-      console.log('Payment Verification Request Body:', req.body);
       const {
         razorpay_order_id,
         razorpay_payment_id,
-        razorpay_signature
+        razorpay_signature // This might be undefined
       } = req.body;
-
-      // Validate signature
-      const sign = razorpay_order_id + '|' + razorpay_payment_id;
-      const expectedSign = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        .update(sign)
-        .digest('hex');
-
-        // Log for debugging
-    console.log('Received Signature:', razorpay_signature);
-    console.log('Expected Signature:', expectedSign);
-
-      // if (razorpay_signature !== expectedSign) {
-      //   return res.status(400).json({ error: 'Invalid payment signature' });
-      // }
-
-      if (razorpay_signature !== expectedSign) {
-        return res.status(400).json({ 
-          error: 'Invalid payment signature',
-          details: {
-            received: razorpay_signature,
-            expected: expectedSign
-          }
-        });
-      }
-
+  
+      // Fetch the order details from Razorpay
       const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+  
+      // If signature is not provided, we'll do a manual verification
+      if (!razorpay_signature) {
+        try {
+          // Verify payment via Razorpay API
+          const payment = await razorpay.payments.fetch(razorpay_payment_id);
+          
+          // Check if payment is associated with the order
+          if (payment.order_id !== razorpay_order_id || payment.status !== 'captured') {
+            return res.status(400).json({ 
+              error: 'Payment verification failed',
+              details: 'Invalid payment or order status'
+            });
+          }
+        } catch (apiVerificationError) {
+          console.error('Razorpay API Verification Error:', apiVerificationError);
+          return res.status(400).json({ 
+            error: 'Payment verification failed',
+            details: apiVerificationError.message
+          });
+        }
+      } else {
+        // Signature-based verification
+        const sign = razorpay_order_id + '|' + razorpay_payment_id;
+        const expectedSign = crypto
+          .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+          .update(sign)
+          .digest('hex');
+  
+        // Log for debugging
+        console.log('Received Signature:', razorpay_signature);
+        console.log('Expected Signature:', expectedSign);
+  
+        // Verify signature
+        if (razorpay_signature !== expectedSign) {
+          return res.status(400).json({ 
+            error: 'Invalid payment signature',
+            details: {
+              received: razorpay_signature,
+              expected: expectedSign
+            }
+          });
+        }
+      }
+  
+      // Extract order details
       const { userId, cartId, paymentMethod, productType } = razorpayOrder.notes;
-
-      // Get cart and create order
+  
+      // Get cart and create order (existing logic)
       const cart = await Cart.findById(cartId).populate('products.product');
       if (!cart) {
         return res.status(400).json({ error: 'Cart not found' });
       }
-
+  
       // Create order and payment records
       const order = new Order({
         user: userId,
@@ -405,9 +524,9 @@ const paymentController = {
         paymentStatus: 'completed',
         orderStatus: 'processing'
       });
-
+  
       await order.save();
-
+  
       const payment = new Payment({
         user: userId,
         amount: razorpayOrder.amount / 100,
@@ -415,7 +534,7 @@ const paymentController = {
         status: 'completed'
       });
       await payment.save();
-
+  
       // Update product quantities
       for (const item of cart.products) {
         await Product.findByIdAndUpdate(
@@ -423,23 +542,24 @@ const paymentController = {
           { $inc: { quantity: -item.quantity } }
         );
       }
-
+  
       // Clear cart
       await Cart.findByIdAndDelete(cartId);
-
+  
       res.json({
         success: true,
         orderId: order._id,
         message: 'Payment verified and order created successfully'
       });
+  
     } catch (error) {
       console.error('Full Payment Verification Error:', error);
       res.status(500).json({ 
         error: 'Error verifying payment',
-        details: error.message,
-        fullError: error
+        details: error.message
       });
-    }}
+    }
+  }
 };
 
 module.exports = paymentController;
