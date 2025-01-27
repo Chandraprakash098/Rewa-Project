@@ -8,6 +8,44 @@ const Attendance = require('../models/Attendance')
 const UserActivity = require('../models/UserActivity')
 
 const adminController = {
+
+
+  getAllStaff: async (req, res) => {
+    try {
+      const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing'];
+      
+      const staff = await User.find({ 
+        role: { $in: validStaffRoles } 
+      })
+      .select('name email phoneNumber role isActive createdAt')
+      .sort({ createdAt: -1 });
+      
+      // Group staff by role for summary
+      const roleSummary = staff.reduce((acc, member) => {
+        acc[member.role] = (acc[member.role] || 0) + 1;
+        return acc;
+      }, {});
+
+      res.json({ 
+        staff: staff.map(member => ({
+          _id: member._id,
+          name: member.name,
+          email: member.email,
+          phoneNumber: member.phoneNumber,
+          role: member.role,
+          isActive: member.isActive,
+          createdAt: member.createdAt
+        })),
+        summary: {
+          total: staff.length,
+          byRole: roleSummary
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching staff members:', error);
+      res.status(500).json({ error: 'Error fetching staff members' });
+    }
+  },
   
 
   getAllUsers : async (req, res) => {

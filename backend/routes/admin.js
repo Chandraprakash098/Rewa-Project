@@ -7,6 +7,8 @@ const adminController = require('../controllers/adminController');
 // Apply authentication and admin role check to all routes
 router.use(auth, checkRole('admin'));
 
+
+
 // Dashboard
 router.get('/dashboard/stats', adminController.getDashboardStats);
 router.get('/categories', adminController.getCategories);
@@ -15,6 +17,7 @@ router.get('/categories', adminController.getCategories);
 router.get('/users', adminController.getAllUsers);
 router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
 router.get('/users/:userId/activity', adminController.getUserActivityHistory);
+router.get('/staff', adminController.getAllStaff);
 
 // Product Management
 router.get('/products', adminController.getAllProducts);
