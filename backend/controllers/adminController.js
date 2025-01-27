@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const MarketingActivity = require('../models/MarketingActivity');
 const Attendance = require('../models/Attendance')
+const UserActivity = require('../models/UserActivity')
 
 const adminController = {
   
@@ -32,9 +33,97 @@ const adminController = {
     }
   },
 
+  //new
+
+  getUserActivityHistory: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      // Validate user exists
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Get user activity records
+      const activityHistory = await UserActivity.findOne({ user: userId });
+      if (!activityHistory) {
+        return res.status(404).json({ error: 'No activity history found' });
+      }
+
+      // Get orders within date range if specified
+      let orderQuery = { user: userId };
+      if (startDate && endDate) {
+        orderQuery.createdAt = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
+      }
+      const orders = await Order.find(orderQuery)
+        .select('createdAt totalAmount orderStatus')
+        .sort({ createdAt: -1 });
+
+      // Calculate active/inactive periods
+      const periods = activityHistory.activityPeriods.map(period => ({
+        startDate: period.startDate,
+        endDate: period.endDate || new Date(),
+        status: period.status,
+        duration: Math.ceil(
+          (period.endDate || new Date() - period.startDate) / (1000 * 60 * 60 * 24)
+        )
+      }));
+
+      res.json({
+        userId,
+        userName: user.name,
+        currentStatus: user.isActive ? 'active' : 'inactive',
+        activityPeriods: periods,
+        orders: orders.map(order => ({
+          orderId: order._id,
+          date: order.createdAt,
+          amount: order.totalAmount,
+          status: order.orderStatus
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching user activity:', error);
+      res.status(500).json({ error: 'Error fetching user activity history' });
+    }
+  },
+
   
 
-  toggleUserStatus : async (req, res) => {
+  // toggleUserStatus : async (req, res) => {
+  //   try {
+  //     const { userId } = req.params;
+  //     const user = await User.findById(userId);
+      
+  //     if (!user) {
+  //       return res.status(404).json({ error: 'User not found' });
+  //     }
+  
+  //     // Only allow toggling regular users, not admins
+  //     if (user.role !== 'user') {
+  //       return res.status(403).json({ error: 'Cannot modify admin user status' });
+  //     }
+  
+  //     // Toggle the status
+  //     user.isActive = !user.isActive;
+  //     await user.save();
+  
+  //     res.json({ 
+  //       message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
+  //       userId: user._id,
+  //       isActive: user.isActive 
+  //     });
+  //   } catch (error) {
+  //     console.error('Error toggling user status:', error);
+  //     res.status(500).json({ error: 'Error updating user status' });
+  //   }
+  // },
+
+  toggleUserStatus: async (req, res) => {
     try {
       const { userId } = req.params;
       const user = await User.findById(userId);
@@ -42,20 +131,49 @@ const adminController = {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-  
-      // Only allow toggling regular users, not admins
+
       if (user.role !== 'user') {
         return res.status(403).json({ error: 'Cannot modify admin user status' });
       }
-  
+
       // Toggle the status
-      user.isActive = !user.isActive;
-      await user.save();
-  
-      res.json({ 
-        message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
+      const newStatus = !user.isActive;
+      user.isActive = newStatus;
+
+      // Update or create activity record
+      let userActivity = await UserActivity.findOne({ user: userId });
+      
+      if (!userActivity) {
+        userActivity = new UserActivity({
+          user: userId,
+          activityPeriods: [{
+            startDate: user.createdAt,
+            status: 'active'
+          }]
+        });
+      }
+
+      // Close the last period and start a new one
+      const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
+      if (lastPeriod && !lastPeriod.endDate) {
+        lastPeriod.endDate = new Date();
+      }
+
+      userActivity.activityPeriods.push({
+        startDate: new Date(),
+        status: newStatus ? 'active' : 'inactive'
+      });
+
+      // Save both user and activity records
+      await Promise.all([
+        user.save(),
+        userActivity.save()
+      ]);
+
+      res.json({
+        message: `User ${newStatus ? 'activated' : 'deactivated'} successfully`,
         userId: user._id,
-        isActive: user.isActive 
+        isActive: newStatus
       });
     } catch (error) {
       console.error('Error toggling user status:', error);
@@ -157,30 +275,82 @@ const adminController = {
   },
 
 
-  getAllProducts : async (req, res) => {
-      try {
+  // getAllProducts : async (req, res) => {
+  //     try {
+  //       const { type, category } = req.query;
+  //       let query = { isActive: true };
+        
+  //       if (type) {
+  //         query.type = type;
+          
+  //         if (category) {
+  //           const validCategories = Product.getCategoriesByType(type);
+  //           if (!validCategories.includes(category)) {
+  //             return res.status(400).json({ error: 'Invalid category for the selected type' });
+  //           }
+  //           query.category = category;
+  //         }
+  //       }
+        
+  //       const products = await Product.find(query);
+  //       res.json({ products });
+  //     } catch (error) {
+  //       res.status(500).json({ error: 'Error fetching products' });
+  //     }
+  //   },
+
+  getAllProducts: async (req, res) => {
+    try {
         const { type, category } = req.query;
         let query = { isActive: true };
         
         if (type) {
-          query.type = type;
-          
-          if (category) {
-            const validCategories = Product.getCategoriesByType(type);
-            if (!validCategories.includes(category)) {
-              return res.status(400).json({ error: 'Invalid category for the selected type' });
+            query.type = type;
+            
+            if (category) {
+                const validCategories = Product.getCategoriesByType(type);
+                if (!validCategories.includes(category)) {
+                    return res.status(400).json({ error: 'Invalid category for the selected type' });
+                }
+                query.category = category;
             }
-            query.category = category;
-          }
         }
         
-        const products = await Product.find(query);
-        res.json({ products });
-      } catch (error) {
+        const products = await Product.find(query)
+            .populate({
+                path: 'stockRemarks.updatedBy',
+                select: 'name'
+            })
+            .sort({ 'stockRemarks.updatedAt': -1 });
+
+        // Format the response with stock information for admin
+        const formattedProducts = products.map(product => {
+            const productObj = product.toObject({ virtuals: true });
+            
+            // Add stock update information if available
+            if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
+                productObj.stockUpdateInfo = {
+                    lastUpdate: {
+                        message: productObj.stockRemarks[0].message,
+                        updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
+                        updatedAt: productObj.stockRemarks[0].updatedAt,
+                        quantity: productObj.stockRemarks[0].quantity,
+                        changeType: productObj.stockRemarks[0].changeType
+                    },
+                    totalUpdates: productObj.stockRemarks.length
+                };
+            }
+            
+            return productObj;
+        });
+
+        res.json({ products: formattedProducts });
+    } catch (error) {
+        console.error('Error in admin getAllProducts:', error);
         res.status(500).json({ error: 'Error fetching products' });
-      }
-    },
-  
+    }
+},
+
   deleteProduct :async (req, res) => {
     try {
       const product = await Product.findByIdAndDelete(req.params.productId);

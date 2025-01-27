@@ -150,6 +150,21 @@ const productSchema = new mongoose.Schema({
       return Boolean(this.discountedPrice);
     }
   },
+
+  stockRemarks: [{
+    message: String,
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    quantity: Number,
+    changeType: String,
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   createdAt: {
     type: Date,
     default: Date.now

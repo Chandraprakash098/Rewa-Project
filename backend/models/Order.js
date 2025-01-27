@@ -196,6 +196,23 @@ const orderSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+ 
+
+  userActivityStatus: {
+    type: String,
+    enum: ['active', 'inactive'],
+    required: true
+  },
+  inactiveDays: {
+    type: Number,
+    default: 0
+  },
+  reactivatedWithOrder: {
+    type: Boolean,
+    default: false
+  },
+  
+
   createdAt: {
     type: Date,
     default: Date.now

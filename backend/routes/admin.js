@@ -14,6 +14,7 @@ router.get('/categories', adminController.getCategories);
 // User Management
 router.get('/users', adminController.getAllUsers);
 router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
+router.get('/users/:userId/activity', adminController.getUserActivityHistory);
 
 // Product Management
 router.get('/products', adminController.getAllProducts);

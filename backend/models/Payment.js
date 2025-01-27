@@ -19,6 +19,17 @@ const paymentSchema = new mongoose.Schema({
     enum: ['pending', 'completed', 'failed'],
     default: 'pending'
   },
+
+  userActivityStatus: {
+    type: String,
+    enum: ['active', 'inactive'],
+    required: true
+  },
+  orderDetails: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order'
+  },
+
   createdAt: {
     type: Date,
     default: Date.now
