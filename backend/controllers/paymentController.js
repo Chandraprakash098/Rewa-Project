@@ -286,6 +286,7 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const crypto = require('crypto');
+const UserActivity = require('../models/UserActivity')
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -326,7 +327,7 @@ const paymentController = {
           if (lastPeriod && lastPeriod.status === 'inactive') {
             const inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
             
-            if (inactiveDays >= 10) {
+            if (inactiveDays >= 30) {
               // Update user activity status
               lastPeriod.endDate = new Date();
               userActivity.activityPeriods.push({
