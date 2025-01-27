@@ -201,7 +201,6 @@ const orderSchema = new mongoose.Schema({
   userActivityStatus: {
     type: String,
     enum: ['active', 'inactive'],
-    required: true
   },
   inactiveDays: {
     type: Number,
@@ -211,7 +210,7 @@ const orderSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  
+
 
   createdAt: {
     type: Date,
