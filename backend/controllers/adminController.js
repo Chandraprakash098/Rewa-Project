@@ -443,25 +443,62 @@ const adminController = {
     }
   },
 
+  // processPreviewOrder: async (req, res) => {
+  //   try {
+  //     const { orderId } = req.params;
+  //     const order = await Order.findById(orderId);
+
+  //     if (!order || order.orderStatus !== 'preview') {
+  //       return res.status(400).json({ error: 'Invalid preview order' });
+  //     }
+
+  //     order._updatedBy = req.user._id;
+  //     order.orderStatus = 'processing';
+  //     await order.save();
+
+  //     res.json({ message: 'Order moved to processing', order });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error processing order' });
+  //   }
+  // },
+
+
   processPreviewOrder: async (req, res) => {
     try {
       const { orderId } = req.params;
+      console.log('Processing orderId:', orderId);
+  
       const order = await Order.findById(orderId);
-
-      if (!order || order.orderStatus !== 'preview') {
-        return res.status(400).json({ error: 'Invalid preview order' });
+      if (!order) {
+        return res.status(400).json({ error: 'Order not found' });
       }
-
+      if (order.orderStatus !== 'preview') {
+        return res.status(400).json({ error: 'Invalid preview order status' });
+      }
+  
+      console.log('Order found:', order);
+  
+      if (!req.user || !req.user._id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+  
+      // Ensure userActivityStatus is set
+      order.userActivityStatus = order.userActivityStatus || 'active';
+  
       order._updatedBy = req.user._id;
       order.orderStatus = 'processing';
+  
       await order.save();
-
+      console.log('Order updated to processing:', order);
+  
       res.json({ message: 'Order moved to processing', order });
     } catch (error) {
-      res.status(500).json({ error: 'Error processing order' });
+      console.error('Error processing order:', error);
+      res.status(500).json({ error: 'Error processing order', details: error.message });
     }
   },
-
+  
+  
   
 
   getAllOrders : async (req, res) => {
