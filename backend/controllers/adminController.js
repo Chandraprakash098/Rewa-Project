@@ -15,7 +15,7 @@ const adminController = {
       const staff = await User.find({ 
         role: { $in: validStaffRoles } 
       })
-      .select('name email phoneNumber role isActive createdAt')
+      .select('name email phoneNumber role password isActive createdAt')
       .sort({ createdAt: -1 });
       
       // Group staff by role for summary
