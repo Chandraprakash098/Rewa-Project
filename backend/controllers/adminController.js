@@ -101,7 +101,7 @@ const adminController = {
         }
 
         // Validate if the user is actually a staff member
-        const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing'];
+        const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing','miscellaneous'];
         if (!validStaffRoles.includes(staff.role)) {
             return res.status(400).json({ error: 'Invalid staff member' });
         }
