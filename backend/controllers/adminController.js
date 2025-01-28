@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const MarketingActivity = require('../models/MarketingActivity');
 const Attendance = require('../models/Attendance')
 const UserActivity = require('../models/UserActivity')
+const passwordCache = new Map();
 
 const adminController = {
   // getAllStaff: async (req, res) => {
