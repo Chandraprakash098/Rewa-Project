@@ -29,6 +29,7 @@ const adminController = {
           _id: member._id,
           name: member.name,
           email: member.email,
+          password:member.password,
           phoneNumber: member.phoneNumber,
           role: member.role,
           isActive: member.isActive,
