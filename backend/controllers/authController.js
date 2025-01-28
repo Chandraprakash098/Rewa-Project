@@ -206,7 +206,7 @@ exports.registerStaff = async (req, res) => {
   try {
     const { name, email, password, phoneNumber, role } = req.body;
 
-    const validStaffRoles = ['admin', 'reception', 'stock', 'dispatch', 'marketing'];
+    const validStaffRoles = ['admin', 'reception', 'stock', 'dispatch', 'marketing','miscellaneous'];
     if (!validStaffRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role specified' });
     }
@@ -237,60 +237,6 @@ exports.registerStaff = async (req, res) => {
 };
 
 
-
-// exports.login = async (req, res) => {
-//   try {
-//     const { identifier, password } = req.body;
-
-//     console.log('Login request received:', { identifier, password });
-
-//     const user = await User.findOne({
-//       $or: [
-//         { email: identifier },
-//         { 'customerDetails.userCode': identifier },
-//       ],
-//     });
-
-    
-
-//     if (!user) {
-//       console.log('User not found');
-//       return res.status(401).json({ error: 'Invalid credentials' });
-//     }
-
-//     if (!user.isActive) {
-//       console.log('User is inactive');
-//       return res.status(401).json({ error: 'User is inactive' });
-//     }
-
-//     // Ensure only customers can use userCode to log in
-//     if (identifier.startsWith('USER-') && user.role !== 'user') {
-//       console.log('Invalid userCode usage for non-user role');
-//       return res.status(401).json({ error: 'Invalid credentials' });
-//     }
-
-//     const isMatch = await user.comparePassword(password);
-//     if (!isMatch) {
-//       console.log('Password mismatch');
-//       return res.status(401).json({ error: 'Invalid credentials' });
-//     }
-
-//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-//       expiresIn: '7d',
-//     });
-
-//     console.log('Login successful:', { userId: user._id, role: user.role });
-
-//     res.json({
-//       token,
-//       role: user.role,
-//       userCode: user.role === 'user' ? user.customerDetails.userCode : null,
-//     });
-//   } catch (error) {
-//     console.error('Login error:', error);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 
 
 exports.login = async (req, res) => {
