@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const fs = require('fs').promises;
 const path = require('path');
-const passwordCache = new Map();
+
 
 
 const generateUserCode = async () => {
@@ -227,7 +227,7 @@ exports.registerStaff = async (req, res) => {
 
     await user.save();
 
-    passwordCache.set(user._id.toString(), password);
+    
 
     res.status(201).json({
       message: 'Staff member registered successfully',
