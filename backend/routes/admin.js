@@ -18,6 +18,7 @@ router.get('/users', adminController.getAllUsers);
 router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
 router.get('/users/:userId/activity', adminController.getUserActivityHistory);
 router.get('/staff', adminController.getAllStaff);
+router.delete('/staff/:staffId', adminController.deleteStaff);
 
 // Product Management
 router.get('/products', adminController.getAllProducts);

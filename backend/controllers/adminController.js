@@ -8,8 +8,6 @@ const Attendance = require('../models/Attendance')
 const UserActivity = require('../models/UserActivity')
 
 const adminController = {
-
-
   getAllStaff: async (req, res) => {
     try {
       const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing'];
@@ -46,6 +44,51 @@ const adminController = {
       res.status(500).json({ error: 'Error fetching staff members' });
     }
   },
+
+  deleteStaff: async (req, res) => {
+    try {
+        const { staffId } = req.params;
+
+        // Validate if staffId is provided
+        if (!staffId) {
+            return res.status(400).json({ error: 'Staff ID is required' });
+        }
+
+        // Check if the staff member exists
+        const staff = await User.findById(staffId);
+        if (!staff) {
+            return res.status(404).json({ error: 'Staff member not found' });
+        }
+
+        // Validate if the user is actually a staff member
+        const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing'];
+        if (!validStaffRoles.includes(staff.role)) {
+            return res.status(400).json({ error: 'Invalid staff member' });
+        }
+
+        // Delete the staff member
+        await User.findByIdAndDelete(staffId);
+
+        res.json({ 
+            message: 'Staff member deleted successfully',
+            deletedStaff: {
+                _id: staff._id,
+                name: staff.name,
+                email: staff.email,
+                role: staff.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Error deleting staff member:', error);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({ error: 'Invalid staff ID format' });
+        }
+        
+        res.status(500).json({ error: 'Error deleting staff member' });
+    }
+},
   
 
   getAllUsers : async (req, res) => {
