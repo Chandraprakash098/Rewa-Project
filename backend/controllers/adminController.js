@@ -10,7 +10,7 @@ const UserActivity = require('../models/UserActivity')
 const adminController = {
   getAllStaff: async (req, res) => {
     try {
-      const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing'];
+      const validStaffRoles = ['reception', 'stock', 'dispatch', 'marketing','miscellaneous'];
       
       const staff = await User.find({ 
         role: { $in: validStaffRoles } 
