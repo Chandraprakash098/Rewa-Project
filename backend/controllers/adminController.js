@@ -941,7 +941,44 @@ getCheckInImages: async (req, res) => {
     console.error('Error fetching check-in images:', error);
     res.status(500).json({ error: 'Error fetching check-in images', details: error.message });
   }
-}
+},
+
+
+getAdminProfile: async (req, res) => {
+  try {
+    // Get admin user from database, excluding sensitive information
+    const admin = await User.findById(req.user._id)
+      .select('-password -__v')
+      .lean();
+
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin profile not found' });
+    }
+
+    // Verify the user is actually an admin
+    if (admin.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Not an admin user.' });
+    }
+
+   
+
+    res.json({
+      profile: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phoneNumber: admin.phoneNumber,
+        role: admin.role,
+        createdAt: admin.createdAt
+      },
+      
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin profile:', error);
+    res.status(500).json({ error: 'Error fetching admin profile' });
+  }
+},
 
 };
 

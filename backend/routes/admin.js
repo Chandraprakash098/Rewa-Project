@@ -42,4 +42,6 @@ router.get('/attendance', adminController.getAllAttendance);
 router.get('/attendance-summary', adminController.getAttendanceSummary);
 router.get('/check-in-images', adminController.getCheckInImages);
 
+router.get('/profile', adminController.getAdminProfile);
+
 module.exports = router;
