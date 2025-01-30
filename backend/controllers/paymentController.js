@@ -298,6 +298,10 @@ const paymentController = {
     try {
       const userId = req.user._id;
       const { paymentMethod } = req.body;
+
+      if (req.isReceptionAccess) {
+        console.log(`Order created by reception ${req.receptionUser._id} for user ${userId}`);
+      }
   
       // Validate payment method
       const validPaymentMethods = ['UPI', 'netBanking', 'debitCard', 'COD'];

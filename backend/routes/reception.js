@@ -46,4 +46,8 @@ router.post(
   receptionController.checkOut
 );
 
+
+router.post('/user-access', receptionController.getUserAccessToken);
+router.post('/validate-access', receptionController.validateReceptionAccess);
+
 module.exports = router;

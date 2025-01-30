@@ -564,24 +564,6 @@ const adminController = {
     }
   },
 
-  // processPreviewOrder: async (req, res) => {
-  //   try {
-  //     const { orderId } = req.params;
-  //     const order = await Order.findById(orderId);
-
-  //     if (!order || order.orderStatus !== 'preview') {
-  //       return res.status(400).json({ error: 'Invalid preview order' });
-  //     }
-
-  //     order._updatedBy = req.user._id;
-  //     order.orderStatus = 'processing';
-  //     await order.save();
-
-  //     res.json({ message: 'Order moved to processing', order });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error processing order' });
-  //   }
-  // },
 
 
   processPreviewOrder: async (req, res) => {
@@ -820,159 +802,58 @@ reviewMarketingActivity: async (req, res) => {
 
 
 
-//For panels Attendance except user
-
-// getAllAttendance: async (req, res) => {
-//   try {
-//     const { startDate, endDate, panel, userId } = req.query;
-
-//     let query = {};
-
-//     // Add date range filter
-//     if (startDate && endDate) {
-//       query.date = {
-//         $gte: new Date(startDate),
-//         $lte: new Date(endDate)
-//       };
-//     }
-
-//     // Add panel filter
-//     if (panel) {
-//       query.panel = panel;
-//     }
-
-//     // Add user filter
-//     if (userId) {
-//       query.user = userId;
-//     }
-
-//     const attendance = await Attendance.find(query)
-//       .populate('user', 'name email customerDetails.firmName panel')
-//       .sort({ date: -1 });
-
-//     // Calculate summary statistics
-//     const summary = {
-//       totalRecords: attendance.length,
-//       totalHours: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0),
-//       averageHoursPerDay: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0) / (attendance.length || 1),
-//       byPanel: attendance.reduce((acc, record) => {
-//         acc[record.panel] = (acc[record.panel] || 0) + 1;
-//         return acc;
-//       }, {})
-//     };
-
-//     res.json({ 
-//       attendance, 
-//       summary 
-//     });
-//   } catch (error) {
-//     console.error('Error fetching attendance:', error);
-//     res.status(500).json({ error: 'Error fetching attendance' });
-//   }
-// },
-
-// // Get summary of attendance for dashboard
-// getAttendanceSummary: async (req, res) => {
-//   try {
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     const summary = {
-//       todayCheckIns: await Attendance.countDocuments({
-//         date: { $gte: today },
-//         status: 'checked-in'
-//       }),
-//       todayCheckOuts: await Attendance.countDocuments({
-//         date: { $gte: today },
-//         status: 'checked-out'
-//       }),
-//       activeUsers: await Attendance.distinct('user', {
-//         date: { $gte: today },
-//         status: 'checked-in'
-//       }),
-//       panelBreakdown: await Attendance.aggregate([
-//         { 
-//           $match: { 
-//             date: { $gte: today } 
-//           } 
-//         },
-//         { 
-//           $group: { 
-//             _id: '$panel', 
-//             count: { $sum: 1 } 
-//           } 
-//         }
-//       ])
-//     };
-
-//     res.json({ summary });
-//   } catch (error) {
-//     console.error('Error fetching attendance summary:', error);
-//     res.status(500).json({ error: 'Error fetching attendance summary' });
-//   }
-// }
 
 
-getAllAttendance: async (req, res) => {
+getAllAttendance : async (req, res) => {
   try {
-    const { startDate, endDate, panel, userId, includeImages } = req.query;
-
+    const { startDate, endDate, panel } = req.query;
+    
     let query = {};
-
-    // Add date range filter
-    if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
+    
     // Add panel filter
     if (panel) {
       query.panel = panel;
     }
 
-    // Add user filter
-    if (userId) {
-      query.user = userId;
+    // Add date range filter
+    if (startDate && endDate) {
+      query.selectedDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
     }
 
-    // Prepare population and projection
-    let populateOptions = {
-      path: 'user', 
-      select: 'name email customerDetails.firmName panel'
-    };
-
-    // If includeImages is true, we'll include the checkInImage
-    let selectOptions = includeImages 
-      ? 'user panel checkInTime checkOutTime date totalHours status checkInImage' 
-      : 'user panel checkInTime checkOutTime date totalHours status';
-
+    // Populate user details and get attendance records
     const attendance = await Attendance.find(query)
-      .populate(populateOptions)
-      .select(selectOptions)
-      .sort({ date: -1 });
+      .populate({
+        path: 'user',
+        select: 'name email customerDetails.firmName panel'
+      })
+      .sort({ selectedDate: -1 });
 
     // Calculate summary statistics
     const summary = {
       totalRecords: attendance.length,
+      totalPresent: attendance.filter(a => a.status === 'present' || a.status === 'checked-in').length,
+      totalAbsent: attendance.filter(a => a.status === 'absent').length,
       totalHours: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0),
-      averageHoursPerDay: attendance.reduce((sum, record) => sum + (record.totalHours || 0), 0) / (attendance.length || 1),
       byPanel: attendance.reduce((acc, record) => {
         acc[record.panel] = (acc[record.panel] || 0) + 1;
         return acc;
       }, {})
     };
 
-    res.json({ 
-      attendance, 
-      summary 
+    res.json({
+      attendance,
+      summary
     });
   } catch (error) {
     console.error('Error fetching attendance:', error);
     res.status(500).json({ error: 'Error fetching attendance', details: error.message });
   }
 },
+
+
 
 // Get summary of attendance for dashboard
 getAttendanceSummary: async (req, res) => {

@@ -1,3 +1,4 @@
+
 // const mongoose = require('mongoose');
 
 // const AttendanceSchema = new mongoose.Schema({
@@ -8,7 +9,7 @@
 //   },
 //   panel: {
 //     type: String,
-//     enum: ['reception', 'marketing', 'stock', 'dispatch'],
+//     enum: ['reception','stock', 'dispatch'],
 //     required: true
 //   },
 //   checkInTime: {
@@ -22,6 +23,10 @@
 //   date: {
 //     type: Date,
 //     required: true
+//   },
+//   checkInImage: {
+//     type: String, // Cloudinary URL of the check-in image
+//     default: null
 //   },
 //   totalHours: {
 //     type: Number,
@@ -46,6 +51,8 @@
 // module.exports = mongoose.model('Attendance', AttendanceSchema);
 
 
+
+// AttendanceSchema.js
 const mongoose = require('mongoose');
 
 const AttendanceSchema = new mongoose.Schema({
@@ -56,7 +63,7 @@ const AttendanceSchema = new mongoose.Schema({
   },
   panel: {
     type: String,
-    enum: ['reception', 'marketing', 'stock', 'dispatch'],
+    enum: ['reception', 'stock', 'dispatch'],
     required: true
   },
   checkInTime: {
@@ -67,13 +74,13 @@ const AttendanceSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  date: {
+  selectedDate: {  // New field for selected date
     type: Date,
     required: true
   },
   checkInImage: {
-    type: String, // Cloudinary URL of the check-in image
-    default: null
+    type: String,
+    required: true
   },
   totalHours: {
     type: Number,
@@ -81,16 +88,15 @@ const AttendanceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['checked-in', 'checked-out'],
+    enum: ['present', 'absent', 'checked-in', 'checked-out'],
     default: 'checked-in'
   }
 }, { timestamps: true });
 
-// Add a method to calculate total hours
 AttendanceSchema.pre('save', function(next) {
   if (this.checkInTime && this.checkOutTime) {
     const diffMs = this.checkOutTime - this.checkInTime;
-    this.totalHours = diffMs / (1000 * 60 * 60); // Convert milliseconds to hours
+    this.totalHours = diffMs / (1000 * 60 * 60);
   }
   next();
 });

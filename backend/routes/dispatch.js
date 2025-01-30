@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
 const dispatchController = require('../controllers/dispatchController');
+const upload = require("../config/multer");
 
 // All routes require authentication and dispatch role
 router.use(auth);
@@ -29,8 +30,12 @@ router.get('/challan/:id', dispatchController.getChallanById);
 router.get('/orders/processing', dispatchController.getProcessingOrders);
 router.patch('/orders/:orderId/status', dispatchController.updateOrderStatus);
 
-router.post('/check-in',  dispatchController.checkIn);
-router.post('/check-out', dispatchController.checkOut);
+router.post(
+    "/check-in",
+    upload.single("checkInImage"),
+    dispatchController.checkIn
+  );
+  router.post("/check-out", dispatchController.checkOut);
 router.get('/daily-orders', dispatchController.getDailyDispatchOrders);
 
 module.exports = router;

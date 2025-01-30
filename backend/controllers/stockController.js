@@ -1,6 +1,7 @@
 const Stock = require('../models/Stock');
 const Product = require('../models/Product');
 const Attendance = require('../models/Attendance')
+const cloudinary = require('../config/cloudinary');
 
 class StockController {
     // Get all products with their quantities
@@ -139,82 +140,208 @@ class StockController {
 
 
 
-async checkIn(req, res) {
+// async checkIn(req, res){
+//   try {
+//     // Check if an image was uploaded
+//     if (!req.file) {
+//       return res.status(400).json({ 
+//         error: 'Please upload a check-in image' 
+//       });
+//     }
+
+//     // Check if user is already checked in today
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     const existingAttendance = await Attendance.findOne({
+//       user: req.user._id,
+//       panel: 'reception',
+//       date: { $gte: today },
+//       status: 'checked-in'
+//     });
+
+//     if (existingAttendance) {
+//       return res.status(400).json({ 
+//         error: 'You are already checked in today' 
+//       });
+//     }
+
+//     // Upload image to Cloudinary
+//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+//       folder: 'check-in-photos',
+//       resource_type: 'image'
+//     });
+
+//     // Create new attendance record
+//     const attendance = new Attendance({
+//       user: req.user._id,
+//       panel: 'reception',
+//       checkInTime: new Date(),
+//       date: new Date(),
+//       status: 'checked-in',
+//       checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
+//     });
+
+//     await attendance.save();
+
+//     res.json({ 
+//       message: 'Check-in successful', 
+//       attendance 
+//     });
+//   } catch (error) {
+//     console.error('Check-in error:', error);
+//     res.status(500).json({ 
+//       error: 'Error during check-in', 
+//       details: error.message 
+//     });
+//   }
+// }
+
+// // Check-out functionality
+// async checkOut(req, res) {
+//     try {
+//         const today = new Date();
+//         today.setHours(0, 0, 0, 0);
+
+//         const attendance = await Attendance.findOne({
+//             user: req.user._id,
+//             panel: 'stock',
+//             date: { $gte: today },
+//             status: 'checked-in'
+//         });
+
+//         if (!attendance) {
+//             return res.status(400).json({ 
+//                 error: 'No active check-in found' 
+//             });
+//         }
+
+//         // Update check-out time
+//         attendance.checkOutTime = new Date();
+//         attendance.status = 'checked-out';
+//         await attendance.save();
+
+//         res.json({ 
+//             message: 'Stock Check-out successful', 
+//             attendance 
+//         });
+//     } catch (error) {
+//         res.status(500).json({ 
+//             error: 'Error during stock check-out', 
+//             details: error.message 
+//         });
+//     }
+// }
+
+
+
+async checkIn(req, res){
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      const { selectedDate } = req.body;
 
-        const existingAttendance = await Attendance.findOne({
-            user: req.user._id,
-            panel: 'stock',
-            date: { $gte: today },
-            status: 'checked-in'
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'Please upload a check-in image'
         });
+      }
 
-        if (existingAttendance) {
-            return res.status(400).json({ 
-                error: 'You are already checked in today' 
-            });
-        }
-
-        // Create new attendance record
-        const attendance = new Attendance({
-            user: req.user._id,
-            panel: 'stock',
-            checkInTime: new Date(),
-            date: new Date(),
-            status: 'checked-in'
+      if (!selectedDate) {
+        return res.status(400).json({
+          error: 'Please select a date for check-in'
         });
+      }
 
-        await attendance.save();
+      // Convert selectedDate to start of day
+      const checkInDate = new Date(selectedDate);
+      checkInDate.setHours(0, 0, 0, 0);
 
-        res.json({ 
-            message: 'Stock Check-in successful', 
-            attendance 
+      // Check if already checked in for selected date
+      const existingAttendance = await Attendance.findOne({
+        user: req.user._id,
+        panel: 'stock',
+        selectedDate: checkInDate,
+        $or: [{ status: 'checked-in' }, { status: 'present' }]
+      });
+
+      if (existingAttendance) {
+        return res.status(400).json({
+          error: 'Already checked in for this date'
         });
+      }
+
+      // Upload image to Cloudinary
+      const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'check-in-photos',
+        resource_type: 'image'
+      });
+
+      // Create new attendance record
+      const attendance = new Attendance({
+        user: req.user._id,
+        panel: 'stock',
+        checkInTime: new Date(),
+        selectedDate: checkInDate,
+        status: 'present',
+        checkInImage: cloudinaryResponse.secure_url
+      });
+
+      await attendance.save();
+
+      res.json({
+        message: 'Check-in successful',
+        attendance
+      });
     } catch (error) {
-        res.status(500).json({ 
-            error: 'Error during stock check-in', 
-            details: error.message 
-        });
+      console.error('Check-in error:', error);
+      res.status(500).json({
+        error: 'Error during check-in',
+        details: error.message
+      });
     }
-}
+  }
 
-// Check-out functionality
-async checkOut(req, res) {
+  async checkOut(req, res){
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      const { selectedDate } = req.body;
 
-        const attendance = await Attendance.findOne({
-            user: req.user._id,
-            panel: 'stock',
-            date: { $gte: today },
-            status: 'checked-in'
+      if (!selectedDate) {
+        return res.status(400).json({
+          error: 'Please select a date for check-out'
         });
+      }
 
-        if (!attendance) {
-            return res.status(400).json({ 
-                error: 'No active check-in found' 
-            });
-        }
+      const checkOutDate = new Date(selectedDate);
+      checkOutDate.setHours(0, 0, 0, 0);
 
-        // Update check-out time
-        attendance.checkOutTime = new Date();
-        attendance.status = 'checked-out';
-        await attendance.save();
+      const attendance = await Attendance.findOne({
+        user: req.user._id,
+        panel: 'stock',
+        selectedDate: checkOutDate,
+        status: 'present'
+      });
 
-        res.json({ 
-            message: 'Stock Check-out successful', 
-            attendance 
+      if (!attendance) {
+        return res.status(400).json({
+          error: 'No active check-in found for selected date'
         });
+      }
+
+      attendance.checkOutTime = new Date();
+      attendance.status = 'checked-out';
+      await attendance.save();
+
+      res.json({
+        message: 'Check-out successful',
+        attendance
+      });
     } catch (error) {
-        res.status(500).json({ 
-            error: 'Error during stock check-out', 
-            details: error.message 
-        });
+      res.status(500).json({
+        error: 'Error during check-out',
+        details: error.message
+      });
     }
-}
+  }
+
 
 // Get stock update history for the day
 async getDailyStockUpdates(req, res) {

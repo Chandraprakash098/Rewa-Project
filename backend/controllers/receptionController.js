@@ -5,6 +5,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
+const Product= require('../models/Product')
 
 
 const generateUserCode = async () => {
@@ -158,62 +159,6 @@ const receptionController = {
     }
   },
 
-  // createOrderForUser: async (req, res) => {
-  //   try {
-  //     const { userCode, products, paymentMethod } = req.body;
-
-  //     // Find user by userCode
-  //     const user = await User.findOne({ 'customerDetails.userCode': userCode });
-  //     if (!user) {
-  //       return res.status(404).json({ error: 'User not found' });
-  //     }
-
-  //     // Calculate total and verify products
-  //     let totalAmount = 0;
-  //     const orderProducts = [];
-
-  //     for (const item of products) {
-  //       const product = await Product.findById(item.productId);
-  //       if (!product) {
-  //         return res.status(404).json({ 
-  //           error: `Product not found: ${item.productId}` 
-  //         });
-  //       }
-  //       if (product.quantity < item.quantity) {
-  //         return res.status(400).json({ 
-  //           error: `Insufficient stock for ${product.name}` 
-  //         });
-  //       }
-
-  //       const price = product.isOffer ? product.offerPrice : product.price;
-  //       totalAmount += price * item.quantity;
-
-  //       orderProducts.push({
-  //         product: product._id,
-  //         quantity: item.quantity,
-  //         price: price
-  //       });
-
-  //       // Update product quantity
-  //       product.quantity -= item.quantity;
-  //       await product.save();
-  //     }
-
-  //     const order = new Order({
-  //       user: user._id,
-  //       products: orderProducts,
-  //       totalAmount,
-  //       paymentMethod,
-  //       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed'
-  //     });
-
-  //     await order.save();
-  //     res.status(201).json({ order });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error creating order' });
-  //   }
-  // },
-
   createOrderForUser: async (req, res) => {
     try {
       const { userCode, products, paymentMethod } = req.body;
@@ -361,9 +306,15 @@ const receptionController = {
 
 
 
-// // Check-in functionality
 // checkIn: async (req, res) => {
 //   try {
+//     // Check if an image was uploaded
+//     if (!req.file) {
+//       return res.status(400).json({ 
+//         error: 'Please upload a check-in image' 
+//       });
+//     }
+
 //     // Check if user is already checked in today
 //     const today = new Date();
 //     today.setHours(0, 0, 0, 0);
@@ -381,13 +332,20 @@ const receptionController = {
 //       });
 //     }
 
+//     // Upload image to Cloudinary
+//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+//       folder: 'check-in-photos',
+//       resource_type: 'image'
+//     });
+
 //     // Create new attendance record
 //     const attendance = new Attendance({
 //       user: req.user._id,
 //       panel: 'reception',
 //       checkInTime: new Date(),
 //       date: new Date(),
-//       status: 'checked-in'
+//       status: 'checked-in',
+//       checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
 //     });
 
 //     await attendance.save();
@@ -397,6 +355,7 @@ const receptionController = {
 //       attendance 
 //     });
 //   } catch (error) {
+//     console.error('Check-in error:', error);
 //     res.status(500).json({ 
 //       error: 'Error during check-in', 
 //       details: error.message 
@@ -404,7 +363,7 @@ const receptionController = {
 //   }
 // },
 
-// // Check-out functionality
+// // Check-out functionality remains the same
 // checkOut: async (req, res) => {
 //   try {
 //     const today = new Date();
@@ -442,29 +401,38 @@ const receptionController = {
 // },
 
 
+
 checkIn: async (req, res) => {
   try {
-    // Check if an image was uploaded
+    const { selectedDate } = req.body;
+
     if (!req.file) {
-      return res.status(400).json({ 
-        error: 'Please upload a check-in image' 
+      return res.status(400).json({
+        error: 'Please upload a check-in image'
       });
     }
 
-    // Check if user is already checked in today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!selectedDate) {
+      return res.status(400).json({
+        error: 'Please select a date for check-in'
+      });
+    }
 
+    // Convert selectedDate to start of day
+    const checkInDate = new Date(selectedDate);
+    checkInDate.setHours(0, 0, 0, 0);
+
+    // Check if already checked in for selected date
     const existingAttendance = await Attendance.findOne({
       user: req.user._id,
       panel: 'reception',
-      date: { $gte: today },
-      status: 'checked-in'
+      selectedDate: checkInDate,
+      $or: [{ status: 'checked-in' }, { status: 'present' }]
     });
 
     if (existingAttendance) {
-      return res.status(400).json({ 
-        error: 'You are already checked in today' 
+      return res.status(400).json({
+        error: 'Already checked in for this date'
       });
     }
 
@@ -479,62 +447,68 @@ checkIn: async (req, res) => {
       user: req.user._id,
       panel: 'reception',
       checkInTime: new Date(),
-      date: new Date(),
-      status: 'checked-in',
-      checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
+      selectedDate: checkInDate,
+      status: 'present',
+      checkInImage: cloudinaryResponse.secure_url
     });
 
     await attendance.save();
 
-    res.json({ 
-      message: 'Check-in successful', 
-      attendance 
+    res.json({
+      message: 'Check-in successful',
+      attendance
     });
   } catch (error) {
     console.error('Check-in error:', error);
-    res.status(500).json({ 
-      error: 'Error during check-in', 
-      details: error.message 
+    res.status(500).json({
+      error: 'Error during check-in',
+      details: error.message
     });
   }
 },
 
-// Check-out functionality remains the same
 checkOut: async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { selectedDate } = req.body;
 
-    // Find the active check-in for today
-    const attendance = await Attendance.findOne({
-      user: req.user._id,
-      panel: 'reception',
-      date: { $gte: today },
-      status: 'checked-in'
-    });
-
-    if (!attendance) {
-      return res.status(400).json({ 
-        error: 'No active check-in found' 
+    if (!selectedDate) {
+      return res.status(400).json({
+        error: 'Please select a date for check-out'
       });
     }
 
-    // Update check-out time
+    const checkOutDate = new Date(selectedDate);
+    checkOutDate.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      user: req.user._id,
+      panel: 'reception',
+      selectedDate: checkOutDate,
+      status: 'present'
+    });
+
+    if (!attendance) {
+      return res.status(400).json({
+        error: 'No active check-in found for selected date'
+      });
+    }
+
     attendance.checkOutTime = new Date();
     attendance.status = 'checked-out';
     await attendance.save();
 
-    res.json({ 
-      message: 'Check-out successful', 
-      attendance 
+    res.json({
+      message: 'Check-out successful',
+      attendance
     });
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Error during check-out', 
-      details: error.message 
+    res.status(500).json({
+      error: 'Error during check-out',
+      details: error.message
     });
   }
 },
+
 
 
 // Admin get attendance
@@ -628,6 +602,82 @@ addDeliveryCharge: async (req, res) => {
     });
   }
 },
+
+
+getUserAccessToken: async (req, res) => {
+  try {
+    const { userCode } = req.body;
+
+    // Find user by userCode
+    const user = await User.findOne({ 'customerDetails.userCode': userCode });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate a special token that includes both user and reception info
+    const token = jwt.sign(
+      { 
+        userId: user._id,
+        receptionId: req.user._id, // Original reception user's ID
+        isReceptionAccess: true 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' } // Short expiration for security
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        firmName: user.customerDetails.firmName,
+        userCode: user.customerDetails.userCode
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error generating user access token',
+      details: error.message 
+    });
+  }
+},
+
+// Validate reception access
+validateReceptionAccess: async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Check if it's a reception access token
+    if (!decoded.isReceptionAccess) {
+      return res.status(401).json({ error: 'Invalid access token' });
+    }
+
+    // Find both user and reception
+    const [user, reception] = await Promise.all([
+      User.findById(decoded.userId),
+      User.findById(decoded.receptionId)
+    ]);
+
+    if (!user || !reception || reception.role !== 'reception') {
+      return res.status(401).json({ error: 'Invalid access' });
+    }
+
+    res.json({ 
+      valid: true,
+      user: {
+        name: user.name,
+        firmName: user.customerDetails.firmName,
+        userCode: user.customerDetails.userCode
+      }
+    });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
 
 
 };
