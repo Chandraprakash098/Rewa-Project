@@ -15,7 +15,8 @@ router.get('/categories', adminController.getCategories);
 
 // User Management
 router.get('/users', adminController.getAllUsers);
-router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
+// router.patch('/users/:userId/toggle-status', adminController.toggleUserStatus);
+router.patch('/users/:userCode/toggle-status', adminController.toggleUserStatus);
 router.get('/users/:userId/activity', adminController.getUserActivityHistory);
 router.get('/staff', adminController.getAllStaff);
 router.delete('/staff/:staffId', adminController.deleteStaff);
