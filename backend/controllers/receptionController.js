@@ -123,6 +123,33 @@ const receptionController = {
       });
     }
   },
+   
+  
+    getAllUsers : async (req, res) => {
+      try {
+        const users = await User.find({ role: 'user' })
+          .select('name email phoneNumber customerDetails.firmName customerDetails.userCode isActive createdAt')
+          .sort({ createdAt: -1 });
+        
+        res.json({ 
+          users: users.map(user => ({
+            // _id: user._id,
+            userCode: user.customerDetails?.userCode,
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            firmName: user.customerDetails?.firmName,
+            isActive: user.isActive,
+            createdAt: user.createdAt
+          }))
+        });
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Error fetching users' });
+      }
+    },
+
+
   // Order Management
   getCurrentOrders: async (req, res) => {
     try {
@@ -303,102 +330,6 @@ const receptionController = {
       res.status(500).json({ error: 'Error updating order status' });
     }
   },
-
-
-
-// checkIn: async (req, res) => {
-//   try {
-//     // Check if an image was uploaded
-//     if (!req.file) {
-//       return res.status(400).json({ 
-//         error: 'Please upload a check-in image' 
-//       });
-//     }
-
-//     // Check if user is already checked in today
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     const existingAttendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'reception',
-//       date: { $gte: today },
-//       status: 'checked-in'
-//     });
-
-//     if (existingAttendance) {
-//       return res.status(400).json({ 
-//         error: 'You are already checked in today' 
-//       });
-//     }
-
-//     // Upload image to Cloudinary
-//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
-//       folder: 'check-in-photos',
-//       resource_type: 'image'
-//     });
-
-//     // Create new attendance record
-//     const attendance = new Attendance({
-//       user: req.user._id,
-//       panel: 'reception',
-//       checkInTime: new Date(),
-//       date: new Date(),
-//       status: 'checked-in',
-//       checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
-//     });
-
-//     await attendance.save();
-
-//     res.json({ 
-//       message: 'Check-in successful', 
-//       attendance 
-//     });
-//   } catch (error) {
-//     console.error('Check-in error:', error);
-//     res.status(500).json({ 
-//       error: 'Error during check-in', 
-//       details: error.message 
-//     });
-//   }
-// },
-
-// // Check-out functionality remains the same
-// checkOut: async (req, res) => {
-//   try {
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     // Find the active check-in for today
-//     const attendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'reception',
-//       date: { $gte: today },
-//       status: 'checked-in'
-//     });
-
-//     if (!attendance) {
-//       return res.status(400).json({ 
-//         error: 'No active check-in found' 
-//       });
-//     }
-
-//     // Update check-out time
-//     attendance.checkOutTime = new Date();
-//     attendance.status = 'checked-out';
-//     await attendance.save();
-
-//     res.json({ 
-//       message: 'Check-out successful', 
-//       attendance 
-//     });
-//   } catch (error) {
-//     res.status(500).json({ 
-//       error: 'Error during check-out', 
-//       details: error.message 
-//     });
-//   }
-// },
 
 
 

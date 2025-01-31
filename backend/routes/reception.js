@@ -13,6 +13,7 @@ router.post(
   upload.single("photo"),
   receptionController.createCustomer
 );
+router.get('/users', receptionController.getAllUsers);
 router.get("/users/search", receptionController.searchUsers);
 
 // Order Management
