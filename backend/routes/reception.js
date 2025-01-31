@@ -31,8 +31,7 @@ router.get("/orders/history", receptionController.getOrderHistory);
 router.get("/orders/pending", receptionController.getPendingOrders);
 router.patch("/orders/:orderId/status", receptionController.updateOrderStatus);
 
-// router.post('/check-in',  receptionController.checkIn);
-// router.post('/check-out', receptionController.checkOut);
+
 
 router.post(
   "/check-in",

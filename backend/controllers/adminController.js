@@ -134,12 +134,13 @@ const adminController = {
   getAllUsers : async (req, res) => {
     try {
       const users = await User.find({ role: 'user' })
-        .select('name email phoneNumber customerDetails.firmName isActive createdAt')
+        .select('name email phoneNumber customerDetails.firmName customerDetails.userCode isActive createdAt')
         .sort({ createdAt: -1 });
       
       res.json({ 
         users: users.map(user => ({
-          _id: user._id,
+          // _id: user._id,
+          userCode: user.customerDetails?.userCode,
           name: user.name,
           email: user.email,
           phoneNumber: user.phoneNumber,
