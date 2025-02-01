@@ -181,6 +181,13 @@ const orderSchema = new mongoose.Schema({
     required: true,
     enum: ['Bottle', 'Raw Material'], // Add additional types as needed
   },
+
+  //new for recption order
+  createdByReception: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+
   deliveryChargeAddedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

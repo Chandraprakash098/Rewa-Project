@@ -22,6 +22,18 @@ const generateUserCode = async () => {
   return userCode;
 };
 
+const getMiscellaneousUser = async (email) => {
+  const user = await User.findOne({ 
+    email, 
+    role: 'miscellaneous'
+  });
+  if (!user) {
+    throw new Error('Miscellaneous user not found');
+  }
+  return user;
+};
+
+
 const receptionController = {
   createCustomer: async (req, res) => {
     try {
@@ -150,21 +162,23 @@ const receptionController = {
     },
 
 
-  // Order Management
-  getCurrentOrders: async (req, res) => {
-    try {
-      const orders = await Order.find({
-        status: { $in: ['pending', 'processing'] }
-      })
-      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-      .populate('products.product', 'name price')
-      .sort({ createdAt: -1 });
+   
 
-      res.json({ orders });
-    } catch (error) {
-      res.status(500).json({ error: 'Error fetching current orders' });
-    }
-  },
+  // Order Management
+  // getCurrentOrders: async (req, res) => {
+  //   try {
+  //     const orders = await Order.find({
+  //       status: { $in: ['pending', 'processing'] }
+  //     })
+  //     .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+  //     .populate('products.product', 'name price')
+  //     .sort({ createdAt: -1 });
+
+  //     res.json({ orders });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching current orders' });
+  //   }
+  // },
 
   getOrdersByUser: async (req, res) => {
     try {
@@ -186,83 +200,242 @@ const receptionController = {
     }
   },
 
-  createOrderForUser: async (req, res) => {
+  getUserPanelAccess: async (req, res) => {
     try {
-      const { userCode, products, paymentMethod } = req.body;
+      const { userCode } = req.body;
   
-      // Find user by userCode
-      const user = await User.findOne({ 'customerDetails.userCode': userCode });
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+      if (!userCode) {
+        return res.status(400).json({ error: 'User code is required' });
       }
   
-      // Calculate total and verify products
-      let totalAmount = 0;
-      const orderProducts = [];
-  
-      for (const item of products) {
-        const product = await Product.findById(item.productId);
-        if (!product) {
-          return res.status(404).json({ 
-            error: `Product not found: ${item.productId}` 
-          });
-        }
-        if (product.quantity < item.quantity) {
-          return res.status(400).json({ 
-            error: `Insufficient stock for ${product.name}` 
-          });
-        }
-  
-        const price = product.isOffer ? product.offerPrice : product.price;
-        totalAmount += price * item.quantity;
-  
-        orderProducts.push({
-          product: product._id,
-          quantity: item.quantity,
-          price: price
-        });
-  
-        // Update product quantity
-        product.quantity -= item.quantity;
-        await product.save();
-      }
-  
-      const order = new Order({
-        user: user._id,
-        products: orderProducts,
-        totalAmount,
-        totalAmountWithDelivery: totalAmount, // Initially set to total amount
-        paymentMethod,
-        shippingAddress: user.customerDetails.address,
-        firmName: user.customerDetails.firmName,
-        gstNumber: user.customerDetails.gstNumber,
-        type: orderProducts[0].product.type, // Get the type of the first product
-        paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-        orderStatus: 'pending'
+      // Find the customer user
+      const customerUser = await User.findOne({ 
+        'customerDetails.userCode': userCode,
+        role: 'user',
+        isActive: true 
       });
   
-      await order.save();
-      res.status(201).json({ order });
+      if (!customerUser) {
+        return res.status(404).json({ error: 'Customer not found or inactive' });
+      }
+  
+      // Generate special token for reception user panel access
+      const token = jwt.sign(
+        {
+          userId: req.user._id,         // Reception user ID
+          customerId: customerUser._id,  // Customer user ID
+          isReceptionAccess: true
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '4h' }
+      );
+  
+      res.json({
+        success: true,
+        token,
+        customer: {
+          name: customerUser.name,
+          email: customerUser.email,
+          firmName: customerUser.customerDetails.firmName,
+          userCode: customerUser.customerDetails.userCode,
+          address: customerUser.customerDetails.address
+        }
+      });
     } catch (error) {
-      res.status(500).json({ error: 'Error creating order' });
+      console.error('Get user panel access error:', error);
+      res.status(500).json({
+        error: 'Error generating user panel access',
+        details: error.message
+      });
     }
   },
+
+  getUserProducts: async (req, res) => {
+    try {
+      if (!req.isReceptionAccess) {
+        return res.status(403).json({ error: 'Invalid access type' });
+      }
+
+      const products = await Product.find({ isActive: true })
+        .select('name description type category originalPrice discountedPrice quantity image validFrom validTo')
+        .lean();
+
+      const formattedProducts = products.map(product => {
+        const isValidOffer = product.discountedPrice && 
+                           product.validFrom && 
+                           product.validTo && 
+                           new Date() >= product.validFrom && 
+                           new Date() <= product.validTo;
+
+        return {
+          _id: product._id,
+          name: product.name,
+          description: product.description,
+          type: product.type,
+          category: product.category,
+          price: isValidOffer ? product.discountedPrice : product.originalPrice,
+          quantity: product.quantity,
+          image: product.image
+        };
+      });
+
+      res.json({
+        products: formattedProducts,
+        customerInfo: {
+          name: req.customerUser.name,
+          firmName: req.customerUser.customerDetails.firmName,
+          userCode: req.customerUser.customerDetails.userCode
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({
+        error: 'Error fetching products',
+        details: error.message
+      });
+    }
+  },
+
+  createOrderAsReception: async (req, res) => {
+    try {
+        if (!req.isReceptionAccess) {
+            return res.status(403).json({ error: 'Invalid access type' });
+        }
+
+        const { products, paymentMethod } = req.body;
+
+        if (!products?.length) {
+            return res.status(400).json({ error: 'Products are required' });
+        }
+
+        let totalAmount = 0;
+        const orderProducts = [];
+        const productTypes = new Set(); // Store product types
+
+        // Validate and process products
+        for (const item of products) {
+            const product = await Product.findOne({
+                _id: item.productId,
+                isActive: true
+            });
+
+            if (!product) {
+                return res.status(404).json({
+                    error: `Product not found: ${item.productId}`
+                });
+            }
+
+            if (product.quantity < item.quantity) {
+                return res.status(400).json({
+                    error: `Insufficient stock for ${product.name}`
+                });
+            }
+
+            const isValidOffer = product.discountedPrice &&
+                product.validFrom &&
+                product.validTo &&
+                new Date() >= product.validFrom &&
+                new Date() <= product.validTo;
+
+            const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+            totalAmount += price * item.quantity;
+
+            orderProducts.push({
+                product: product._id,
+                quantity: item.quantity,
+                price
+            });
+
+            productTypes.add(product.type); // Collect product types
+
+            // Update product quantity
+            product.quantity -= item.quantity;
+            await product.save();
+        }
+
+        // Ensure at least one product type is selected
+        if (productTypes.size === 0) {
+            return res.status(400).json({ error: "Order must contain at least one valid product type" });
+        }
+
+        // Create order
+        const order = new Order({
+            user: req.customerUser._id,
+            products: orderProducts,
+            totalAmount,
+            totalAmountWithDelivery: totalAmount, // Will be updated when delivery charge is added
+            paymentMethod,
+            paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+            orderStatus: 'pending',
+            shippingAddress: req.customerUser.customerDetails.address,
+            firmName: req.customerUser.customerDetails.firmName,
+            gstNumber: req.customerUser.customerDetails.gstNumber,
+            createdByReception: req.user._id,
+            type: [...productTypes][0] // Assigning product type
+        });
+
+        await order.save();
+
+        res.status(201).json({
+            message: 'Order created successfully',
+            order: {
+                ...order.toObject(),
+                createdBy: {
+                    reception: req.user.name,
+                    customer: req.customerUser.customerDetails.firmName
+                }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Error creating order',
+            details: error.message
+        });
+    }
+},
+
+
+  // getOrderHistory: async (req, res) => {
+  //   try {
+  //     // Get orders from last 35 days
+  //     const thirtyFiveDaysAgo = new Date();
+  //     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+  //     const orders = await Order.find({
+  //       createdAt: { $gte: thirtyFiveDaysAgo }
+  //     })
+  //     .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+  //     .populate('products.product', 'name price')
+  //     .sort({ createdAt: -1 });
+
+  //     res.json({ orders });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching order history' });
+  //   }
+  // },
 
 
   getOrderHistory: async (req, res) => {
     try {
-      // Get orders from last 35 days
       const thirtyFiveDaysAgo = new Date();
       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
 
       const orders = await Order.find({
         createdAt: { $gte: thirtyFiveDaysAgo }
       })
-      .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+      .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
       .populate('products.product', 'name price')
+      .populate('createdByReception', 'name')
       .sort({ createdAt: -1 });
 
-      res.json({ orders });
+      const formattedOrders = orders.map(order => ({
+        ...order.toObject(),
+        orderSource: order.createdByReception ? 
+          `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}` :
+          `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
+      }));
+
+      res.json({ orders: formattedOrders });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching order history' });
     }
@@ -535,25 +708,39 @@ addDeliveryCharge: async (req, res) => {
 },
 
 
+
+
 getUserAccessToken: async (req, res) => {
   try {
-    const { userCode } = req.body;
+    const { userCode, miscEmail, orderType } = req.body;
 
-    // Find user by userCode
-    const user = await User.findOne({ 'customerDetails.userCode': userCode });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    let user;
+    
+    if (orderType === 'regular' && userCode) {
+      // Find regular user by userCode
+      user = await User.findOne({ 'customerDetails.userCode': userCode });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+    } else if (orderType === 'miscellaneous' && miscEmail) {
+      // Find miscellaneous user by email
+      user = await getMiscellaneousUser(miscEmail);
+    } else {
+      return res.status(400).json({ 
+        error: 'Invalid request. Provide either userCode for regular users or email for miscellaneous users' 
+      });
     }
 
-    // Generate a special token that includes both user and reception info
+    // Generate access token
     const token = jwt.sign(
       { 
         userId: user._id,
-        receptionId: req.user._id, // Original reception user's ID
-        isReceptionAccess: true 
+        receptionId: req.user._id,
+        isReceptionAccess: true,
+        orderType: orderType
       },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' } // Short expiration for security
+      { expiresIn: '1h' }
     );
 
     res.json({
@@ -562,32 +749,30 @@ getUserAccessToken: async (req, res) => {
       user: {
         name: user.name,
         email: user.email,
-        firmName: user.customerDetails.firmName,
-        userCode: user.customerDetails.userCode
+        firmName: user.customerDetails?.firmName,
+        userCode: user.customerDetails?.userCode,
+        isMiscellaneous: orderType === 'miscellaneous'
       }
     });
   } catch (error) {
     res.status(500).json({ 
-      error: 'Error generating user access token',
+      error: 'Error generating access token',
       details: error.message 
     });
   }
 },
 
-// Validate reception access
+// Modified validateReceptionAccess
 validateReceptionAccess: async (req, res) => {
   try {
     const { token } = req.body;
     
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Check if it's a reception access token
     if (!decoded.isReceptionAccess) {
       return res.status(401).json({ error: 'Invalid access token' });
     }
 
-    // Find both user and reception
     const [user, reception] = await Promise.all([
       User.findById(decoded.userId),
       User.findById(decoded.receptionId)
@@ -601,14 +786,15 @@ validateReceptionAccess: async (req, res) => {
       valid: true,
       user: {
         name: user.name,
-        firmName: user.customerDetails.firmName,
-        userCode: user.customerDetails.userCode
+        firmName: user.customerDetails?.firmName,
+        userCode: user.customerDetails?.userCode,
+        isMiscellaneous: decoded.orderType === 'miscellaneous'
       }
     });
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
-}
+},
 
 
 };
