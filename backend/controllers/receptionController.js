@@ -395,38 +395,26 @@ const receptionController = {
 },
 
 
-  // getOrderHistory: async (req, res) => {
-  //   try {
-  //     // Get orders from last 35 days
-  //     const thirtyFiveDaysAgo = new Date();
-  //     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
-
-  //     const orders = await Order.find({
-  //       createdAt: { $gte: thirtyFiveDaysAgo }
-  //     })
-  //     .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
-  //     .populate('products.product', 'name price')
-  //     .sort({ createdAt: -1 });
-
-  //     res.json({ orders });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error fetching order history' });
-  //   }
-  // },
-
-
+  
   getOrderHistory: async (req, res) => {
     try {
       const thirtyFiveDaysAgo = new Date();
       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
 
+      // const orders = await Order.find({
+      //   createdAt: { $gte: thirtyFiveDaysAgo }
+      // })
+      // .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
+      // .populate('products.product', 'name price quantity')
+      // .populate('createdByReception', 'name')
+      // .sort({ createdAt: -1 });
+
       const orders = await Order.find({
-        createdAt: { $gte: thirtyFiveDaysAgo }
-      })
-      .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
-      .populate('products.product', 'name price')
-      .populate('createdByReception', 'name')
-      .sort({ createdAt: -1 });
+           createdAt: { $gte: thirtyFiveDaysAgo }})
+              .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
+              .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+              .populate('products.product', 'name type quantity')
+              .sort({ createdAt: -1 });
 
       const formattedOrders = orders.map(order => ({
         ...order.toObject(),
@@ -441,6 +429,7 @@ const receptionController = {
     }
   },
 
+  
   searchUsers: async (req, res) => {
     try {
       const { query } = req.query;
@@ -467,14 +456,17 @@ const receptionController = {
         orderStatus: 'pending'
       })
       .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
-      .populate('products.product')
+      .populate('products.product', 'name price quantity')
       .sort({ createdAt: -1 });
+
 
       res.json({ orders });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching pending orders' });
     }
   },
+
+  
 
   updateOrderStatus: async (req, res) => {
     try {
