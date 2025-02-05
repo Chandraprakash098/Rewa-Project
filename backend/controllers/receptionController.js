@@ -296,133 +296,269 @@ const receptionController = {
     }
   },
 
-  createOrderAsReception: async (req, res) => {
-    try {
-        if (!req.isReceptionAccess) {
-            return res.status(403).json({ error: 'Invalid access type' });
-        }
+//   createOrderAsReception: async (req, res) => {
+//     try {
+//         if (!req.isReceptionAccess) {
+//             return res.status(403).json({ error: 'Invalid access type' });
+//         }
 
-        const { products, paymentMethod } = req.body;
+//         const { products, paymentMethod } = req.body;
 
-        if (!products?.length) {
-            return res.status(400).json({ error: 'Products are required' });
-        }
+//         if (!products?.length) {
+//             return res.status(400).json({ error: 'Products are required' });
+//         }
 
-        let totalAmount = 0;
-        const orderProducts = [];
-        const productTypes = new Set(); // Store product types
+//         let totalAmount = 0;
+//         const orderProducts = [];
+//         const productTypes = new Set(); // Store product types
 
-        // Validate and process products
-        for (const item of products) {
-            const product = await Product.findOne({
-                _id: item.productId,
-                isActive: true
-            });
+//         // Validate and process products
+//         for (const item of products) {
+//             const product = await Product.findOne({
+//                 _id: item.productId,
+//                 isActive: true
+//             });
 
-            if (!product) {
-                return res.status(404).json({
-                    error: `Product not found: ${item.productId}`
-                });
-            }
+//             if (!product) {
+//                 return res.status(404).json({
+//                     error: `Product not found: ${item.productId}`
+//                 });
+//             }
 
-            if (product.quantity < item.quantity) {
-                return res.status(400).json({
-                    error: `Insufficient stock for ${product.name}`
-                });
-            }
+//             if (product.quantity < item.quantity) {
+//                 return res.status(400).json({
+//                     error: `Insufficient stock for ${product.name}`
+//                 });
+//             }
 
-            const isValidOffer = product.discountedPrice &&
-                product.validFrom &&
-                product.validTo &&
-                new Date() >= product.validFrom &&
-                new Date() <= product.validTo;
+//             const isValidOffer = product.discountedPrice &&
+//                 product.validFrom &&
+//                 product.validTo &&
+//                 new Date() >= product.validFrom &&
+//                 new Date() <= product.validTo;
 
-            const price = isValidOffer ? product.discountedPrice : product.originalPrice;
-            totalAmount += price * item.quantity;
+//             const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+//             totalAmount += price * item.quantity;
 
-            orderProducts.push({
-                product: product._id,
-                quantity: item.quantity,
-                price
-            });
+//             orderProducts.push({
+//                 product: product._id,
+//                 quantity: item.quantity,
+//                 price
+//             });
 
-            productTypes.add(product.type); // Collect product types
+//             productTypes.add(product.type); // Collect product types
 
-            // Update product quantity
-            product.quantity -= item.quantity;
-            await product.save();
-        }
+//             // Update product quantity
+//             product.quantity -= item.quantity;
+//             await product.save();
+//         }
 
-        // Ensure at least one product type is selected
-        if (productTypes.size === 0) {
-            return res.status(400).json({ error: "Order must contain at least one valid product type" });
-        }
+//         // Ensure at least one product type is selected
+//         if (productTypes.size === 0) {
+//             return res.status(400).json({ error: "Order must contain at least one valid product type" });
+//         }
 
-        // Create order
-        const order = new Order({
-            user: req.customerUser._id,
-            products: orderProducts,
-            totalAmount,
-            totalAmountWithDelivery: totalAmount, // Will be updated when delivery charge is added
-            paymentMethod,
-            paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-            orderStatus: 'pending',
-            shippingAddress: req.customerUser.customerDetails.address,
-            firmName: req.customerUser.customerDetails.firmName,
-            gstNumber: req.customerUser.customerDetails.gstNumber,
-            createdByReception: req.user._id,
-            type: [...productTypes][0] // Assigning product type
-        });
+//         // Create order
+//         const order = new Order({
+//             user: req.customerUser._id,
+//             products: orderProducts,
+//             totalAmount,
+//             totalAmountWithDelivery: totalAmount, // Will be updated when delivery charge is added
+//             paymentMethod,
+//             paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+//             orderStatus: 'pending',
+//             shippingAddress: req.customerUser.customerDetails.address,
+//             firmName: req.customerUser.customerDetails.firmName,
+//             gstNumber: req.customerUser.customerDetails.gstNumber,
+//             createdByReception: req.user._id,
+//             type: [...productTypes][0] // Assigning product type
+//         });
 
-        await order.save();
+//         await order.save();
 
-        res.status(201).json({
-            message: 'Order created successfully',
-            order: {
-                ...order.toObject(),
-                createdBy: {
-                    reception: req.user.name,
-                    customer: req.customerUser.customerDetails.firmName
-                }
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: 'Error creating order',
-            details: error.message
-        });
+//         res.status(201).json({
+//             message: 'Order created successfully',
+//             order: {
+//                 ...order.toObject(),
+//                 createdBy: {
+//                     reception: req.user.name,
+//                     customer: req.customerUser.customerDetails.firmName
+//                 }
+//             }
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             error: 'Error creating order',
+//             details: error.message
+//         });
+//     }
+// },
+
+
+createOrderAsReception : async (req, res) => {
+  try {
+      if (!req.isReceptionAccess) {
+          return res.status(403).json({ error: 'Invalid access type' });
+      }
+
+      const { products, paymentMethod } = req.body;
+
+      if (!products?.length) {
+          return res.status(400).json({ error: 'Products are required' });
+      }
+
+      let totalAmount = 0;
+      const orderProducts = [];
+      const productTypes = new Set();
+
+      // Validate and process products
+      for (const item of products) {
+          const product = await Product.findOne({
+              _id: item.productId,
+              isActive: true
+          });
+
+          if (!product) {
+              return res.status(404).json({
+                  error: `Product not found: ${item.productId}`
+              });
+          }
+
+          if (product.quantity < item.quantity) {
+              return res.status(400).json({
+                  error: `Insufficient stock for ${product.name}`
+              });
+          }
+
+          const isValidOffer = product.discountedPrice &&
+              product.validFrom &&
+              product.validTo &&
+              new Date() >= product.validFrom &&
+              new Date() <= product.validTo;
+
+          const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+          totalAmount += price * item.quantity;
+
+          orderProducts.push({
+              product: product._id,
+              quantity: item.quantity,
+              price
+          });
+
+          productTypes.add(product.type);
+
+          // Update product quantity
+          product.quantity -= item.quantity;
+          await product.save();
+      }
+
+      // Create order with miscellaneous flag if applicable
+      const orderData = new Order({
+          user: req.customerUser._id,
+          products: orderProducts,
+          totalAmount,
+          totalAmountWithDelivery: totalAmount,
+          paymentMethod,
+          paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+          orderStatus: 'pending',
+          createdByReception: req.user._id,
+          type: [...productTypes][0]
+      });
+
+      // Add required fields based on user type
+      if (req.customerUser.role === 'miscellaneous') {
+        orderData.firmName = `${req.customerUser.name} (Miscellaneous)`;
+        orderData.shippingAddress = 'Walk-in Customer';
+        orderData.isMiscellaneous = true;
+    } else {
+        orderData.firmName = req.customerUser.customerDetails.firmName;
+        orderData.shippingAddress = req.customerUser.customerDetails.address;
+        orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
     }
+
+    const order = new Order(orderData);
+    await order.save();
+
+      res.status(201).json({
+          message: 'Order created successfully',
+          order: {
+              ...order.toObject(),
+              createdBy: {
+                  reception: req.user.name,
+                  customer: req.customerUser.role === 'miscellaneous' ? 
+                      `${req.customerUser.name} (Miscellaneous)` : 
+                      req.customerUser.customerDetails.firmName
+              }
+          }
+      });
+  } catch (error) {
+      res.status(500).json({
+          error: 'Error creating order',
+          details: error.message
+      });
+  }
 },
 
 
   
-  getOrderHistory: async (req, res) => {
+  // getOrderHistory: async (req, res) => {
+  //   try {
+  //     const thirtyFiveDaysAgo = new Date();
+  //     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+  //     // const orders = await Order.find({
+  //     //   createdAt: { $gte: thirtyFiveDaysAgo }
+  //     // })
+  //     // .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
+  //     // .populate('products.product', 'name price quantity')
+  //     // .populate('createdByReception', 'name')
+  //     // .sort({ createdAt: -1 });
+
+  //     const orders = await Order.find({
+  //          createdAt: { $gte: thirtyFiveDaysAgo }})
+  //             .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
+  //             .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+  //             .populate('products.product', 'name type quantity')
+  //             .sort({ createdAt: -1 });
+
+  //     const formattedOrders = orders.map(order => ({
+  //       ...order.toObject(),
+  //       orderSource: order.createdByReception ? 
+  //         `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}` :
+  //         `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
+  //     }));
+
+  //     res.json({ orders: formattedOrders });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching order history' });
+  //   }
+  // },
+
+
+
+  getOrderHistory : async (req, res) => {
     try {
       const thirtyFiveDaysAgo = new Date();
       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
-
-      // const orders = await Order.find({
-      //   createdAt: { $gte: thirtyFiveDaysAgo }
-      // })
-      // .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
-      // .populate('products.product', 'name price quantity')
-      // .populate('createdByReception', 'name')
-      // .sort({ createdAt: -1 });
-
+  
       const orders = await Order.find({
-           createdAt: { $gte: thirtyFiveDaysAgo }})
-              .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
-              .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
-              .populate('products.product', 'name type quantity')
-              .sort({ createdAt: -1 });
-
+        createdAt: { $gte: thirtyFiveDaysAgo }
+      })
+        .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
+        .populate('user', 'name email role customerDetails.firmName customerDetails.userCode')
+        .populate('products.product', 'name type quantity')
+        .populate('createdByReception', 'name')
+        .sort({ createdAt: -1 });
+  
       const formattedOrders = orders.map(order => ({
         ...order.toObject(),
         orderSource: order.createdByReception ? 
-          `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}` :
+          (order.user.role === 'miscellaneous' ?
+            `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)` :
+            `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}`) :
           `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
       }));
-
+  
       res.json({ orders: formattedOrders });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching order history' });
@@ -700,93 +836,74 @@ addDeliveryCharge: async (req, res) => {
 },
 
 
-
-
-getUserAccessToken: async (req, res) => {
+getMiscellaneousPanelAccess : async (req, res) => {
   try {
-    const { userCode, miscEmail, orderType } = req.body;
+    const { name, email } = req.body;
 
-    let user;
-    
-    if (orderType === 'regular' && userCode) {
-      // Find regular user by userCode
-      user = await User.findOne({ 'customerDetails.userCode': userCode });
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-    } else if (orderType === 'miscellaneous' && miscEmail) {
-      // Find miscellaneous user by email
-      user = await getMiscellaneousUser(miscEmail);
-    } else {
-      return res.status(400).json({ 
-        error: 'Invalid request. Provide either userCode for regular users or email for miscellaneous users' 
-      });
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
     }
 
-    // Generate access token
+    // Find or create miscellaneous user
+    let miscUser = await User.findOne({ 
+      email, 
+      role: 'miscellaneous'
+    });
+
+    if (!miscUser) {
+      // Generate a unique user code
+      const userCode = await generateUserCode();
+      
+      miscUser = new User({
+        name,
+        email,
+        role: 'miscellaneous',
+        password: Math.random().toString(36).slice(-8), // Random password as it's not used
+        phoneNumber: '0000000000', // Default phone number
+        isActive: true,
+        customerDetails: {
+          firmName: `${name} (Miscellaneous)`,
+          userCode: userCode,
+          address: 'Walk-in Customer' // Default address
+        }
+      });
+      await miscUser.save();
+    }
+
+    // Generate special token for reception user panel access
     const token = jwt.sign(
-      { 
-        userId: user._id,
-        receptionId: req.user._id,
+      {
+        userId: req.user._id,         // Reception user ID
+        customerId: miscUser._id,     // Miscellaneous user ID
         isReceptionAccess: true,
-        orderType: orderType
+        isMiscellaneous: true
       },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '4h' }
     );
 
     res.json({
       success: true,
       token,
-      user: {
-        name: user.name,
-        email: user.email,
-        firmName: user.customerDetails?.firmName,
-        userCode: user.customerDetails?.userCode,
-        isMiscellaneous: orderType === 'miscellaneous'
+      customer: {
+        name: miscUser.name,
+        email: miscUser.email,
+        firmName: miscUser.customerDetails?.firmName,
+        userCode: miscUser.customerDetails?.userCode
       }
     });
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Error generating access token',
-      details: error.message 
+    console.error('Get miscellaneous panel access error:', error);
+    res.status(500).json({
+      error: 'Error generating miscellaneous panel access',
+      details: error.message
     });
   }
 },
 
-// Modified validateReceptionAccess
-validateReceptionAccess: async (req, res) => {
-  try {
-    const { token } = req.body;
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (!decoded.isReceptionAccess) {
-      return res.status(401).json({ error: 'Invalid access token' });
-    }
 
-    const [user, reception] = await Promise.all([
-      User.findById(decoded.userId),
-      User.findById(decoded.receptionId)
-    ]);
 
-    if (!user || !reception || reception.role !== 'reception') {
-      return res.status(401).json({ error: 'Invalid access' });
-    }
 
-    res.json({ 
-      valid: true,
-      user: {
-        name: user.name,
-        firmName: user.customerDetails?.firmName,
-        userCode: user.customerDetails?.userCode,
-        isMiscellaneous: decoded.orderType === 'miscellaneous'
-      }
-    });
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
-  }
-},
 
 
 };

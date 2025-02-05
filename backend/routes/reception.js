@@ -92,6 +92,7 @@ router.post("/check-out", receptionController.checkOut);
 // User panel access route (requires regular reception authentication)
 // router.use('/user-panel-access', auth, checkRole('reception'));
 router.post('/user-panel-access', receptionController.getUserPanelAccess);
+router.post("/miscellaneous-panel-access", receptionController.getMiscellaneousPanelAccess);
 
 // User panel routes with special authentication
 const userPanelRouter = express.Router();
