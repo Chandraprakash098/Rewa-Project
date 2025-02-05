@@ -545,7 +545,7 @@ createOrderAsReception : async (req, res) => {
         createdAt: { $gte: thirtyFiveDaysAgo }
       })
         .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
-        .populate('user', 'name email role customerDetails.firmName customerDetails.userCode')
+        .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type quantity')
         .populate('createdByReception', 'name')
         .sort({ createdAt: -1 });
