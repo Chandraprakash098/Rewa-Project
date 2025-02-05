@@ -836,7 +836,73 @@ addDeliveryCharge: async (req, res) => {
 },
 
 
-getMiscellaneousPanelAccess : async (req, res) => {
+// getMiscellaneousPanelAccess : async (req, res) => {
+//   try {
+//     const { name, email } = req.body;
+
+//     if (!name || !email) {
+//       return res.status(400).json({ error: 'Name and email are required' });
+//     }
+
+//     // Find or create miscellaneous user
+//     let miscUser = await User.findOne({ 
+//       email, 
+//       role: 'miscellaneous'
+//     });
+
+//     if (!miscUser) {
+//       // Generate a unique user code
+//       const userCode = await generateUserCode();
+      
+//       miscUser = new User({
+//         name,
+//         email,
+//         role: 'miscellaneous',
+//         password: Math.random().toString(36).slice(-8), // Random password as it's not used
+//         phoneNumber: '0000000000', // Default phone number
+//         isActive: true,
+//         customerDetails: {
+//           firmName: `${name} (Miscellaneous)`,
+//           userCode: userCode,
+//           address: 'Walk-in Customer' // Default address
+//         }
+//       });
+//       await miscUser.save();
+//     }
+
+//     // Generate special token for reception user panel access
+//     const token = jwt.sign(
+//       {
+//         userId: req.user._id,         // Reception user ID
+//         customerId: miscUser._id,     // Miscellaneous user ID
+//         isReceptionAccess: true,
+//         isMiscellaneous: true
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '4h' }
+//     );
+
+//     res.json({
+//       success: true,
+//       token,
+//       customer: {
+//         name: miscUser.name,
+//         email: miscUser.email,
+//         firmName: miscUser.customerDetails?.firmName,
+//         userCode: miscUser.customerDetails?.userCode
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Get miscellaneous panel access error:', error);
+//     res.status(500).json({
+//       error: 'Error generating miscellaneous panel access',
+//       details: error.message
+//     });
+//   }
+// },
+
+
+getMiscellaneousPanelAccess: async (req, res) => {
   try {
     const { name, email } = req.body;
 
@@ -844,7 +910,7 @@ getMiscellaneousPanelAccess : async (req, res) => {
       return res.status(400).json({ error: 'Name and email are required' });
     }
 
-    // Find or create miscellaneous user
+    // Find miscellaneous user by email only
     let miscUser = await User.findOne({ 
       email, 
       role: 'miscellaneous'
@@ -855,26 +921,31 @@ getMiscellaneousPanelAccess : async (req, res) => {
       const userCode = await generateUserCode();
       
       miscUser = new User({
-        name,
+        name: name,  // Use provided name for new user
         email,
         role: 'miscellaneous',
-        password: Math.random().toString(36).slice(-8), // Random password as it's not used
-        phoneNumber: '0000000000', // Default phone number
+        password: Math.random().toString(36).slice(-8),
+        phoneNumber: '0000000000',
         isActive: true,
         customerDetails: {
           firmName: `${name} (Miscellaneous)`,
           userCode: userCode,
-          address: 'Walk-in Customer' // Default address
+          address: 'Walk-in Customer'
         }
       });
+      await miscUser.save();
+    } else {
+      // Update only the name and firmName for existing user
+      miscUser.name = name;
+      miscUser.customerDetails.firmName = `${name} (Miscellaneous)`;
       await miscUser.save();
     }
 
     // Generate special token for reception user panel access
     const token = jwt.sign(
       {
-        userId: req.user._id,         // Reception user ID
-        customerId: miscUser._id,     // Miscellaneous user ID
+        userId: req.user._id,
+        customerId: miscUser._id,
         isReceptionAccess: true,
         isMiscellaneous: true
       },
@@ -886,9 +957,9 @@ getMiscellaneousPanelAccess : async (req, res) => {
       success: true,
       token,
       customer: {
-        name: miscUser.name,
+        name: name,  // Return the provided name instead of stored name
         email: miscUser.email,
-        firmName: miscUser.customerDetails?.firmName,
+        firmName: `${name} (Miscellaneous)`,  // Use provided name in firm name
         userCode: miscUser.customerDetails?.userCode
       }
     });
@@ -899,7 +970,7 @@ getMiscellaneousPanelAccess : async (req, res) => {
       details: error.message
     });
   }
-},
+}
 
 
 
