@@ -147,15 +147,50 @@ const cartController = {
     }
   },
 
-  // Clear cart
-  clearCart: async (req, res) => {
+  // // Clear cart
+  // clearCart: async (req, res) => {
+  //   try {
+  //     const userId = req.user._id;
+  //     await Cart.findOneAndDelete({ user: userId });
+  //     res.json({ message: 'Cart cleared successfully' });
+  //   } catch (error) {
+  //     console.error('Clear cart error:', error);
+  //     res.status(500).json({ error: 'Error clearing cart' });
+  //   }
+  // },
+
+
+  removeFromCart: async (req, res) => {
     try {
+      const { product: productId } = req.body;
       const userId = req.user._id;
-      await Cart.findOneAndDelete({ user: userId });
-      res.json({ message: 'Cart cleared successfully' });
+
+      if (!productId) {
+        return res.status(400).json({ error: 'Product ID is required' });
+      }
+
+      // Find the user's cart
+      const cart = await Cart.findOne({ user: userId });
+
+      if (!cart) {
+        return res.status(404).json({ error: 'Cart not found' });
+      }
+
+      // Remove the specific product from the cart
+      cart.products = cart.products.filter(
+        item => item.product.toString() !== productId
+      );
+
+      // Save the updated cart
+      await cart.save();
+
+      // Populate product details before sending response
+      const populatedCart = await Cart.findById(cart._id).populate('products.product');
+
+      res.status(200).json({ cart: populatedCart });
     } catch (error) {
-      console.error('Clear cart error:', error);
-      res.status(500).json({ error: 'Error clearing cart' });
+      console.error('Remove from cart error:', error);
+      res.status(500).json({ error: 'Error removing product from cart' });
     }
   }
 };

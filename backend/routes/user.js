@@ -58,7 +58,8 @@ router.get('/offers', auth, userController.getOffers);
 // Cart Routes
 router.post('/cart', auth, cartController.addToCart);
 router.get('/cart', auth, cartController.getCart);
-router.delete('/cart', auth, cartController.clearCart);
+// router.delete('/cart', auth, cartController.clearCart);
+router.delete('/cart/product', auth, cartController.removeFromCart);
 
 // Order & Payment Routes
 router.post('/create-order', auth, paymentController.createOrder); // Single entry point for order creation
