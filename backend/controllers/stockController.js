@@ -111,35 +111,35 @@ class StockController {
     
 
     // Get stock update history for a product
-    // async getStockHistory(req, res) {
-    //     try {
-    //         const { productId } = req.params;
-    //         const stockHistory = await Stock.findOne({ productId })
-    //             .populate('updateHistory.updatedBy', 'name')
-    //             .populate('productId', 'name');
-
-    //         if (!stockHistory) {
-    //             return res.status(404).json({
-    //                 success: false,
-    //                 message: 'No stock history found for this product'
-    //             });
-    //         }
-
-    //         res.status(200).json({
-    //             success: true,
-    //             data: stockHistory
-    //         });
-    //     } catch (error) {
-    //         res.status(500).json({
-    //             success: false,
-    //             message: 'Error fetching stock history',
-    //             error: error.message
-    //         });
-    //     }
-    // }
-
-
     async getStockHistory(req, res) {
+        try {
+            const { productId } = req.params;
+            const stockHistory = await Stock.findOne({ productId })
+                .populate('updateHistory.updatedBy', 'name')
+                .populate('productId', 'name');
+
+            if (!stockHistory) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No stock history found for this product'
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                data: stockHistory
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error fetching stock history',
+                error: error.message
+            });
+        }
+    }
+
+
+    async getallStockHistory(req, res) {
       try {
           const stockHistory = await Stock.find()
               .populate('updateHistory.updatedBy', 'name')
