@@ -111,127 +111,61 @@ class StockController {
     
 
     // Get stock update history for a product
+    // async getStockHistory(req, res) {
+    //     try {
+    //         const { productId } = req.params;
+    //         const stockHistory = await Stock.findOne({ productId })
+    //             .populate('updateHistory.updatedBy', 'name')
+    //             .populate('productId', 'name');
+
+    //         if (!stockHistory) {
+    //             return res.status(404).json({
+    //                 success: false,
+    //                 message: 'No stock history found for this product'
+    //             });
+    //         }
+
+    //         res.status(200).json({
+    //             success: true,
+    //             data: stockHistory
+    //         });
+    //     } catch (error) {
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Error fetching stock history',
+    //             error: error.message
+    //         });
+    //     }
+    // }
+
+
     async getStockHistory(req, res) {
-        try {
-            const { productId } = req.params;
-            const stockHistory = await Stock.findOne({ productId })
-                .populate('updateHistory.updatedBy', 'name')
-                .populate('productId', 'name');
+      try {
+          const stockHistory = await Stock.find()
+              .populate('updateHistory.updatedBy', 'name')
+              .populate('productId', 'name');
+  
+          if (!stockHistory || stockHistory.length === 0) {
+              return res.status(404).json({
+                  success: false,
+                  message: 'No stock history found'
+              });
+          }
+  
+          res.status(200).json({
+              success: true,
+              data: stockHistory
+          });
+      } catch (error) {
+          res.status(500).json({
+              success: false,
+              message: 'Error fetching stock history',
+              error: error.message
+          });
+      }
+  }
+  
 
-            if (!stockHistory) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'No stock history found for this product'
-                });
-            }
-
-            res.status(200).json({
-                success: true,
-                data: stockHistory
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: 'Error fetching stock history',
-                error: error.message
-            });
-        }
-    }
-
-
-
-// async checkIn(req, res){
-//   try {
-//     // Check if an image was uploaded
-//     if (!req.file) {
-//       return res.status(400).json({ 
-//         error: 'Please upload a check-in image' 
-//       });
-//     }
-
-//     // Check if user is already checked in today
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     const existingAttendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'reception',
-//       date: { $gte: today },
-//       status: 'checked-in'
-//     });
-
-//     if (existingAttendance) {
-//       return res.status(400).json({ 
-//         error: 'You are already checked in today' 
-//       });
-//     }
-
-//     // Upload image to Cloudinary
-//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
-//       folder: 'check-in-photos',
-//       resource_type: 'image'
-//     });
-
-//     // Create new attendance record
-//     const attendance = new Attendance({
-//       user: req.user._id,
-//       panel: 'reception',
-//       checkInTime: new Date(),
-//       date: new Date(),
-//       status: 'checked-in',
-//       checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
-//     });
-
-//     await attendance.save();
-
-//     res.json({ 
-//       message: 'Check-in successful', 
-//       attendance 
-//     });
-//   } catch (error) {
-//     console.error('Check-in error:', error);
-//     res.status(500).json({ 
-//       error: 'Error during check-in', 
-//       details: error.message 
-//     });
-//   }
-// }
-
-// // Check-out functionality
-// async checkOut(req, res) {
-//     try {
-//         const today = new Date();
-//         today.setHours(0, 0, 0, 0);
-
-//         const attendance = await Attendance.findOne({
-//             user: req.user._id,
-//             panel: 'stock',
-//             date: { $gte: today },
-//             status: 'checked-in'
-//         });
-
-//         if (!attendance) {
-//             return res.status(400).json({ 
-//                 error: 'No active check-in found' 
-//             });
-//         }
-
-//         // Update check-out time
-//         attendance.checkOutTime = new Date();
-//         attendance.status = 'checked-out';
-//         await attendance.save();
-
-//         res.json({ 
-//             message: 'Stock Check-out successful', 
-//             attendance 
-//         });
-//     } catch (error) {
-//         res.status(500).json({ 
-//             error: 'Error during stock check-out', 
-//             details: error.message 
-//         });
-//     }
-// }
 
 
 

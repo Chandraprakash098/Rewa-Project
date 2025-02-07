@@ -11,11 +11,7 @@ router.use(checkRole('dispatch'));
 // Get current orders
 router.get('/current-orders', dispatchController.getCurrentOrders);
 
-// Get preview orders
-// router.get('/preview-orders', dispatchController.getPreviewOrders);
 
-// Get pending orders
-// router.get('/pending-orders', dispatchController.getPendingOrders);
 
 // Generate delivery challan
 router.post('/generate-challan', dispatchController.generateChallan);
@@ -24,7 +20,9 @@ router.post('/generate-challan', dispatchController.generateChallan);
 router.get('/order-history', dispatchController.getOrderHistory);
 
 // Get specific challan
-router.get('/challan/:id', dispatchController.getChallanById);
+// router.get('/challan/:id', dispatchController.getChallanById);
+
+router.get('/challans/:userCode', dispatchController.getChallansByUserCode);
 
 
 router.get('/orders/processing', dispatchController.getProcessingOrders);

@@ -2,22 +2,43 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
+const Challan = require('../models/Challan'); 
+
+
+//for Test
+
+
+
+const generateInvoiceNumber = async () => {
+  const date = new Date();
+  const currentYear = date.getFullYear();
+  
+  const latestChallan = await Challan.findOne()
+    .sort({ invoiceNo: -1 });
+  
+  let sequence = 122234192; // Starting from a base number
+  if (latestChallan && latestChallan.invoiceNo) {
+    sequence = parseInt(latestChallan.invoiceNo) + 1;
+  }
+  
+  return sequence.toString();
+};
 
 // Generate a unique challan number
-const generateChallanNumber = async () => {
-  const date = new Date();
-  const prefix = `CH${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-  const latestOrder = await Order.findOne({ 'deliveryNote.challanNumber': new RegExp(prefix) })
-    .sort({ 'deliveryNote.challanNumber': -1 });
+// const generateChallanNumber = async () => {
+//   const date = new Date();
+//   const prefix = `CH${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+//   const latestOrder = await Order.findOne({ 'deliveryNote.challanNumber': new RegExp(prefix) })
+//     .sort({ 'deliveryNote.challanNumber': -1 });
 
-  let sequence = '0001';
-  if (latestOrder && latestOrder.deliveryNote.challanNumber) {
-    const currentSequence = parseInt(latestOrder.deliveryNote.challanNumber.slice(-4));
-    sequence = (currentSequence + 1).toString().padStart(4, '0');
-  }
+//   let sequence = '0001';
+//   if (latestOrder && latestOrder.deliveryNote.challanNumber) {
+//     const currentSequence = parseInt(latestOrder.deliveryNote.challanNumber.slice(-4));
+//     sequence = (currentSequence + 1).toString().padStart(4, '0');
+//   }
 
-  return `${prefix}${sequence}`;
-};
+//   return `${prefix}${sequence}`;
+// };
 
 // Get current orders (pending and processing)
 exports.getCurrentOrders = async (req, res) => {
@@ -77,40 +98,16 @@ exports.getProcessingOrders= async (req, res) => {
   }
 };
 
-// // Get preview orders (all pending orders)
-// exports.getPreviewOrders = async (req, res) => {
-//   try {
-//     const orders = await Order.find({ status: 'pending' })
-//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-//       .populate('products.product')
-//       .sort({ createdAt: -1 });
 
-//     res.json(orders);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 
-// // Get pending orders
-// exports.getPendingOrders = async (req, res) => {
-//   try {
-//     const orders = await Order.find({ status: 'pending' })
-//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-//       .populate('products.product')
-//       .sort({ createdAt: -1 });
-
-//     res.json(orders);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
-
-// Generate delivery challan and complete order
 // exports.generateChallan = async (req, res) => {
 //   try {
 //     const { orderId, vehicleNumber, driverName, fuelType } = req.body;
 
-//     const order = await Order.findById(orderId);
+//     const order = await Order.findById(orderId)
+//       .populate('user', 'name customerDetails.firmName customerDetails.address')
+//       .populate('products.product', 'name');
+
 //     if (!order) {
 //       return res.status(404).json({ error: 'Order not found' });
 //     }
@@ -124,85 +121,171 @@ exports.getProcessingOrders= async (req, res) => {
 //       fuelType,
 //       createdAt: new Date()
 //     };
-//     order.status = 'completed';
+//     order.orderStatus = 'shipped';
 //     await order.save();
-
-//     // Populate necessary fields for challan generation
-//     await order.populate('user', 'name customerDetails.firmName customerDetails.address');
-//     await order.populate('products.product', 'name');
 
 //     res.json({
 //       message: 'Challan generated successfully',
 //       order,
-//       challan: order.deliveryNote
+//       challan: {
+//         ...order.deliveryNote,
+//         totalAmount: order.totalAmount,
+//         deliveryCharge: order.deliveryCharge || 0,
+//         totalAmountWithDelivery: order.totalAmountWithDelivery
+//       }
 //     });
 //   } catch (error) {
 //     res.status(500).json({ error: 'Server error' });
 //   }
 // };
 
+
 exports.generateChallan = async (req, res) => {
   try {
-    const { orderId, vehicleNumber, driverName, fuelType } = req.body;
+    const {
+      userCode,
+      vehicleNo,
+      driverName,
+      mobileNo,
+      items,
+      receiverName
+    } = req.body;
 
-    const order = await Order.findById(orderId)
-      .populate('user', 'name customerDetails.firmName customerDetails.address')
-      .populate('products.product', 'name');
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
+    if (!userCode) {
+      return res.status(400).json({ error: 'User code is required' });
     }
 
-    const challanNumber = await generateChallanNumber();
+    // Generate invoice number
+    const invoiceNo = await generateInvoiceNumber();
 
-    order.deliveryNote = {
-      challanNumber,
-      vehicleNumber,
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => {
+      return sum + (item.quantity * item.rate);
+    }, 0);
+
+    // Create new challan
+    const challan = new Challan({
+      userCode,
+      invoiceNo,
+      date: new Date(),
+      vehicleNo,
       driverName,
-      fuelType,
-      createdAt: new Date()
-    };
-    order.orderStatus = 'shipped';
-    await order.save();
+      mobileNo,
+      items,
+      totalAmount,
+      receiverName
+    });
+
+    await challan.save();
 
     res.json({
       message: 'Challan generated successfully',
-      order,
-      challan: {
-        ...order.deliveryNote,
-        totalAmount: order.totalAmount,
-        deliveryCharge: order.deliveryCharge || 0,
-        totalAmountWithDelivery: order.totalAmountWithDelivery
-      }
+      challan
     });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Challan generation error:', error);
+    res.status(500).json({ 
+      error: 'Error generating challan',
+      details: error.message 
+    });
+  }
+};
+
+// exports.getChallanById = async (req, res) => {
+//   try {
+//     const challan = await Challan.findById(req.params.id);
+
+//     if (!challan) {
+//       return res.status(404).json({ error: 'Challan not found' });
+//     }
+
+//     res.json(challan);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// };
+
+
+exports.getChallansByUserCode = async (req, res) => {
+  try {
+    const { userCode } = req.params;
+
+    if (!userCode) {
+      return res.status(400).json({ error: 'User code is required' });
+    }
+
+    const challans = await Challan.find({ userCode })
+      .sort({ createdAt: -1 }); // Sort by latest first
+
+    if (!challans || challans.length === 0) {
+      return res.status(404).json({ error: 'No challans found for this user code' });
+    }
+
+    res.json({
+      count: challans.length,
+      challans
+    });
+  } catch (error) {
+    console.error('Error fetching challans:', error);
+    res.status(500).json({ 
+      error: 'Error fetching challans',
+      details: error.message 
+    });
   }
 };
 
 
+// exports.getOrderHistory = async (req, res) => {
+//     try {
+//       // Get orders from last 35 days
+//       const thirtyFiveDaysAgo = new Date();
+//       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
 
-exports.getOrderHistory = async (req, res) => {
+//       const orders = await Order.find({
+//         createdAt: { $gte: thirtyFiveDaysAgo }
+//       })
+//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+//       .populate('products.product', 'name price')
+//       .sort({ createdAt: -1 });
+
+//       res.json({ orders });
+//     } catch (error) {
+//       res.status(500).json({ error: 'Error fetching order history' });
+//     }
+//   };
+
+  exports.getOrderHistory = async (req, res) => {
     try {
-      // Get orders from last 35 days
       const thirtyFiveDaysAgo = new Date();
       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
-
+  
       const orders = await Order.find({
         createdAt: { $gte: thirtyFiveDaysAgo }
       })
-      .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-      .populate('products.product', 'name price')
-      .sort({ createdAt: -1 });
-
-      res.json({ orders });
+        .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
+        .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
+        .populate('products.product', 'name type quantity')
+        .populate('createdByReception', 'name')
+        .sort({ createdAt: -1 });
+  
+      const formattedOrders = orders.map(order => ({
+        ...order.toObject(),
+        orderSource: order.createdByReception ? 
+          (order.user.role === 'miscellaneous' ?
+            `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)` :
+            `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}`) :
+          `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
+      }));
+  
+      res.json({ orders: formattedOrders });
     } catch (error) {
       res.status(500).json({ error: 'Error fetching order history' });
     }
   };
 
 
-// Get challan by ID
+
+
 // exports.getChallanById = async (req, res) => {
 //   try {
 //     const order = await Order.findById(req.params.id)
@@ -213,130 +296,22 @@ exports.getOrderHistory = async (req, res) => {
 //       return res.status(404).json({ error: 'Challan not found' });
 //     }
 
-//     res.json(order);
+//     res.json({
+//       ...order.toObject(),
+//       challanDetails: {
+//         totalAmount: order.totalAmount,
+//         deliveryCharge: order.deliveryCharge || 0,
+//         totalAmountWithDelivery: order.totalAmountWithDelivery
+//       }
+//     });
 //   } catch (error) {
 //     res.status(500).json({ error: 'Server error' });
 //   }
-
 // };
 
-exports.getChallanById = async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id)
-      .populate('user', 'name customerDetails.firmName customerDetails.address customerDetails.userCode')
-      .populate('products.product', 'name');
-
-    if (!order || !order.deliveryNote) {
-      return res.status(404).json({ error: 'Challan not found' });
-    }
-
-    res.json({
-      ...order.toObject(),
-      challanDetails: {
-        totalAmount: order.totalAmount,
-        deliveryCharge: order.deliveryCharge || 0,
-        totalAmountWithDelivery: order.totalAmountWithDelivery
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-};
 
 
-// exports.checkIn = async (req, res) => {
-//   try {
-//     // Check if an image was uploaded
-//     if (!req.file) {
-//       return res.status(400).json({ 
-//         error: 'Please upload a check-in image' 
-//       });
-//     }
 
-//     // Check if user is already checked in today
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     const existingAttendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'reception',
-//       date: { $gte: today },
-//       status: 'checked-in'
-//     });
-
-//     if (existingAttendance) {
-//       return res.status(400).json({ 
-//         error: 'You are already checked in today' 
-//       });
-//     }
-
-//     // Upload image to Cloudinary
-//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
-//       folder: 'check-in-photos',
-//       resource_type: 'image'
-//     });
-
-//     // Create new attendance record
-//     const attendance = new Attendance({
-//       user: req.user._id,
-//       panel: 'reception',
-//       checkInTime: new Date(),
-//       date: new Date(),
-//       status: 'checked-in',
-//       checkInImage: cloudinaryResponse.secure_url // Store Cloudinary image URL
-//     });
-
-//     await attendance.save();
-
-//     res.json({ 
-//       message: 'Check-in successful', 
-//       attendance 
-//     });
-//   } catch (error) {
-//     console.error('Check-in error:', error);
-//     res.status(500).json({ 
-//       error: 'Error during check-in', 
-//       details: error.message 
-//     });
-//   }
-// }
-
-// // Check-out functionality
-// exports.checkOut = async (req, res) => {
-//   try {
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
-//     // Find the active check-in for today
-//     const attendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'dispatch',
-//       date: { $gte: today },
-//       status: 'checked-in'
-//     });
-
-//     if (!attendance) {
-//       return res.status(400).json({ 
-//         error: 'No active check-in found' 
-//       });
-//     }
-
-//     // Update check-out time
-//     attendance.checkOutTime = new Date();
-//     attendance.status = 'checked-out';
-//     await attendance.save();
-
-//     res.json({ 
-//       message: 'Check-out successful', 
-//       attendance 
-//     });
-//   } catch (error) {
-//     res.status(500).json({ 
-//       error: 'Error during check-out', 
-//       details: error.message 
-//     });
-//   }
-// }
 
 
 exports.checkIn = async (req, res) => {
