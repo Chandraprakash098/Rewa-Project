@@ -544,7 +544,7 @@ createOrderAsReception : async (req, res) => {
       const orders = await Order.find({
         createdAt: { $gte: thirtyFiveDaysAgo }
       })
-        .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
+        .select('orderId firmName gstNumber email shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
         .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type quantity')
         .populate('createdByReception', 'name')
@@ -591,7 +591,7 @@ createOrderAsReception : async (req, res) => {
       const orders = await Order.find({
         orderStatus: 'pending'
       })
-      .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+      .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
       .populate('products.product', 'name price quantity')
       .sort({ createdAt: -1 });
 
