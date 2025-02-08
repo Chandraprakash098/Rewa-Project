@@ -182,6 +182,7 @@ const userController = {
             firmName: user.customerDetails?.firmName,
             gstNumber: user.customerDetails?.gstNumber,
             panNumber: user.customerDetails?.panNumber,
+            photo:user.customerDetails?.photo,
             address: user.customerDetails?.address,
           },
           createdAt: user.createdAt,

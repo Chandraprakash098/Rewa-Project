@@ -177,98 +177,6 @@ const uploadToCloudinary = (buffer) => {
 
 
 // Updated registerCustomer function
-// exports.registerCustomer = async (req, res) => {
-//   try {
-//     const {
-//       name,
-//       firmName,
-//       phoneNumber,
-//       email,
-//       password,
-//       gstNumber,
-//       panNumber,
-//       address,
-//     } = req.body;
-
-//     // Validation checks
-//     if (!name || !firmName || !phoneNumber || !email || !password || !address) {
-//       return res.status(400).json({
-//         error: 'Missing required fields',
-//         details: {
-//           name: !name,
-//           firmName: !firmName,
-//           phoneNumber: !phoneNumber,
-//           email: !email,
-//           password: !password,
-//           address: !address,
-//         },
-//       });
-//     }
-
-//     let user = await User.findOne({ email });
-//     if (user) {
-//       return res.status(400).json({ error: 'User already exists' });
-//     }
-
-//     // Generate userCode
-//     const userCode = await generateUserCode();
-
-//     // Process photo if uploaded
-//     let photoUrl = null;
-//     let photoPublicId = null;
-    
-//     if (req.file) {
-//       try {
-//         const result = await uploadToCloudinary(req.file.buffer);
-//         photoUrl = result.secure_url;
-//         photoPublicId = result.public_id;
-//       } catch (err) {
-//         console.error('Cloudinary upload error:', err);
-//         return res.status(500).json({ error: 'File upload failed' });
-//       }
-//     }
-
-//     // Create new user
-//     user = new User({
-//       name,
-//       email,
-//       password,
-//       phoneNumber,
-//       role: 'user',
-//       customerDetails: {
-//         firmName,
-//         gstNumber,
-//         panNumber,
-//         address,
-//         photo: photoUrl,
-//         photoPublicId,
-//         userCode,
-//       },
-//     });
-
-//     await user.save();
-
-//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-//       expiresIn: '7d',
-//     });
-
-//     res.status(201).json({
-//       token,
-//       userCode: user.customerDetails.userCode,
-//       role: user.role,
-//       photo: photoUrl,
-//     });
-//   } catch (error) {
-//     console.error('Registration error:', error);
-//     res.status(500).json({
-//       error: 'Server error',
-//       details: error.message,
-//     });
-//   }
-// };
-
-
-
 exports.registerCustomer = async (req, res) => {
   try {
     const {
@@ -307,11 +215,13 @@ exports.registerCustomer = async (req, res) => {
 
     // Process photo if uploaded
     let photoUrl = null;
+    let photoPublicId = null;
     
     if (req.file) {
       try {
         const result = await uploadToCloudinary(req.file.buffer);
         photoUrl = result.secure_url;
+        photoPublicId = result.public_id;
       } catch (err) {
         console.error('Cloudinary upload error:', err);
         return res.status(500).json({ error: 'File upload failed' });
@@ -331,6 +241,7 @@ exports.registerCustomer = async (req, res) => {
         panNumber,
         address,
         photo: photoUrl,
+        photoPublicId,
         userCode,
       },
     });
@@ -355,6 +266,95 @@ exports.registerCustomer = async (req, res) => {
     });
   }
 };
+
+
+
+// exports.registerCustomer = async (req, res) => {
+//   try {
+//     const {
+//       name,
+//       firmName,
+//       phoneNumber,
+//       email,
+//       password,
+//       gstNumber,
+//       panNumber,
+//       address,
+//     } = req.body;
+
+//     // Validation checks
+//     if (!name || !firmName || !phoneNumber || !email || !password || !address) {
+//       return res.status(400).json({
+//         error: 'Missing required fields',
+//         details: {
+//           name: !name,
+//           firmName: !firmName,
+//           phoneNumber: !phoneNumber,
+//           email: !email,
+//           password: !password,
+//           address: !address,
+//         },
+//       });
+//     }
+
+//     let user = await User.findOne({ email });
+//     if (user) {
+//       return res.status(400).json({ error: 'User already exists' });
+//     }
+
+//     // Generate userCode
+//     const userCode = await generateUserCode();
+
+//     // Process photo if uploaded
+//     let photoUrl = null;
+    
+//     if (req.file) {
+//       try {
+//         const result = await uploadToCloudinary(req.file.buffer);
+//         photoUrl = result.secure_url;
+//       } catch (err) {
+//         console.error('Cloudinary upload error:', err);
+//         return res.status(500).json({ error: 'File upload failed' });
+//       }
+//     }
+
+//     // Create new user
+//     user = new User({
+//       name,
+//       email,
+//       password,
+//       phoneNumber,
+//       role: 'user',
+//       customerDetails: {
+//         firmName,
+//         gstNumber,
+//         panNumber,
+//         address,
+//         photo: photoUrl,
+//         userCode,
+//       },
+//     });
+
+//     await user.save();
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+//       expiresIn: '7d',
+//     });
+
+//     res.status(201).json({
+//       token,
+//       userCode: user.customerDetails.userCode,
+//       role: user.role,
+//       photo: photoUrl,
+//     });
+//   } catch (error) {
+//     console.error('Registration error:', error);
+//     res.status(500).json({
+//       error: 'Server error',
+//       details: error.message,
+//     });
+//   }
+// };
 
 
 // Updated updateProfilePhoto function
@@ -529,51 +529,14 @@ exports.login = async (req, res) => {
 
 
 // Get User Profile
-// exports.getProfile = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user._id).select('-password');
-//     res.json(user);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
-
-
 exports.getProfile = async (req, res) => {
   try {
-    // Fetch user with all fields except password
-    const user = await User.findById(req.user._id)
-      .select('-password')
-      .lean();
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Debug: Log user data to confirm photo exists in the backend
-    console.log('User data fetched:', user);
-
-    // Ensure customerDetails exists
-    if (!user.customerDetails) {
-      return res.status(400).json({ error: 'Customer details missing' });
-    }
-
-    // Extract and log the photo URL
-    const photoUrl = user.customerDetails.photo || null;
-    console.log('Extracted Photo URL:', photoUrl);
-
-    // Return user data along with photo
-    res.json({
-      user: {
-        ...user,
-        customerDetails: {
-          ...user.customerDetails,
-          photo: photoUrl, // Ensure photo is included
-        },
-      },
-    });
+    const user = await User.findById(req.user._id).select('-password');
+    res.json(user);
   } catch (error) {
-    console.error('Get profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+
+
