@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const fs = require('fs').promises;
 const path = require('path');
+const cloudinary = require('../config/cloudinary');
 // const passwordCache = new Map();
 
 
