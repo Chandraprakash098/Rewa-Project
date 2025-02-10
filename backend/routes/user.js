@@ -64,6 +64,10 @@ router.delete('/cart/product', auth, cartController.removeFromCart);
 // Order & Payment Routes
 router.post('/create-order', auth, paymentController.createOrder); // Single entry point for order creation
 router.post('/verify-payment', auth, paymentController.verifyPayment);
+// router.post('/webhook', 
+//     express.raw({type: 'application/json'}),
+//     paymentController.webhook
+//   );
 router.get('/orders/history', auth, userController.getOrderHistory);
 
 // Profile Routes
