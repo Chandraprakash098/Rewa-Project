@@ -24,21 +24,6 @@ const generateInvoiceNumber = async () => {
   return sequence.toString();
 };
 
-// Generate a unique challan number
-// const generateChallanNumber = async () => {
-//   const date = new Date();
-//   const prefix = `CH${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-//   const latestOrder = await Order.findOne({ 'deliveryNote.challanNumber': new RegExp(prefix) })
-//     .sort({ 'deliveryNote.challanNumber': -1 });
-
-//   let sequence = '0001';
-//   if (latestOrder && latestOrder.deliveryNote.challanNumber) {
-//     const currentSequence = parseInt(latestOrder.deliveryNote.challanNumber.slice(-4));
-//     sequence = (currentSequence + 1).toString().padStart(4, '0');
-//   }
-
-//   return `${prefix}${sequence}`;
-// };
 
 // Get current orders (pending and processing)
 exports.getCurrentOrders = async (req, res) => {
@@ -100,44 +85,6 @@ exports.getProcessingOrders= async (req, res) => {
 
 
 
-// exports.generateChallan = async (req, res) => {
-//   try {
-//     const { orderId, vehicleNumber, driverName, fuelType } = req.body;
-
-//     const order = await Order.findById(orderId)
-//       .populate('user', 'name customerDetails.firmName customerDetails.address')
-//       .populate('products.product', 'name');
-
-//     if (!order) {
-//       return res.status(404).json({ error: 'Order not found' });
-//     }
-
-//     const challanNumber = await generateChallanNumber();
-
-//     order.deliveryNote = {
-//       challanNumber,
-//       vehicleNumber,
-//       driverName,
-//       fuelType,
-//       createdAt: new Date()
-//     };
-//     order.orderStatus = 'shipped';
-//     await order.save();
-
-//     res.json({
-//       message: 'Challan generated successfully',
-//       order,
-//       challan: {
-//         ...order.deliveryNote,
-//         totalAmount: order.totalAmount,
-//         deliveryCharge: order.deliveryCharge || 0,
-//         totalAmountWithDelivery: order.totalAmountWithDelivery
-//       }
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 
 
 exports.generateChallan = async (req, res) => {
@@ -191,19 +138,7 @@ exports.generateChallan = async (req, res) => {
   }
 };
 
-// exports.getChallanById = async (req, res) => {
-//   try {
-//     const challan = await Challan.findById(req.params.id);
 
-//     if (!challan) {
-//       return res.status(404).json({ error: 'Challan not found' });
-//     }
-
-//     res.json(challan);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 
 
 exports.getChallansByUserCode = async (req, res) => {
@@ -235,24 +170,6 @@ exports.getChallansByUserCode = async (req, res) => {
 };
 
 
-// exports.getOrderHistory = async (req, res) => {
-//     try {
-//       // Get orders from last 35 days
-//       const thirtyFiveDaysAgo = new Date();
-//       thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
-
-//       const orders = await Order.find({
-//         createdAt: { $gte: thirtyFiveDaysAgo }
-//       })
-//       .populate('user', 'name customerDetails.firmName customerDetails.userCode')
-//       .populate('products.product', 'name price')
-//       .sort({ createdAt: -1 });
-
-//       res.json({ orders });
-//     } catch (error) {
-//       res.status(500).json({ error: 'Error fetching order history' });
-//     }
-//   };
 
   exports.getOrderHistory = async (req, res) => {
     try {
@@ -282,32 +199,6 @@ exports.getChallansByUserCode = async (req, res) => {
       res.status(500).json({ error: 'Error fetching order history' });
     }
   };
-
-
-
-
-// exports.getChallanById = async (req, res) => {
-//   try {
-//     const order = await Order.findById(req.params.id)
-//       .populate('user', 'name customerDetails.firmName customerDetails.address customerDetails.userCode')
-//       .populate('products.product', 'name');
-
-//     if (!order || !order.deliveryNote) {
-//       return res.status(404).json({ error: 'Challan not found' });
-//     }
-
-//     res.json({
-//       ...order.toObject(),
-//       challanDetails: {
-//         totalAmount: order.totalAmount,
-//         deliveryCharge: order.deliveryCharge || 0,
-//         totalAmountWithDelivery: order.totalAmountWithDelivery
-//       }
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// };
 
 
 
