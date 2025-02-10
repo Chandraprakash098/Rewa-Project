@@ -87,6 +87,114 @@ exports.getProcessingOrders= async (req, res) => {
 
 
 
+// exports.generateChallan = async (req, res) => {
+//   try {
+//     const {
+//       userCode,
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items,
+//       receiverName
+//     } = req.body;
+
+//     if (!userCode) {
+//       return res.status(400).json({ error: 'User code is required' });
+//     }
+
+//     // Generate invoice number
+//     const invoiceNo = await generateInvoiceNumber();
+
+//     // Calculate total amount
+//     const totalAmount = items.reduce((sum, item) => {
+//       return sum + (item.quantity * item.rate);
+//     }, 0);
+
+//     // Create new challan
+//     const challan = new Challan({
+//       userCode,
+//       invoiceNo,
+//       date: new Date(),
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items,
+//       totalAmount,
+//       receiverName
+//     });
+
+//     await challan.save();
+
+//     res.json({
+//       message: 'Challan generated successfully',
+//       challan
+//     });
+//   } catch (error) {
+//     console.error('Challan generation error:', error);
+//     res.status(500).json({ 
+//       error: 'Error generating challan',
+//       details: error.message 
+//     });
+//   }
+// };
+
+
+// exports.generateChallan = async (req, res) => {
+//   try {
+//     const {
+//       userCode,
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items,
+//       receiverName
+//     } = req.body;
+
+//     if (!userCode) {
+//       return res.status(400).json({ error: 'User code is required' });
+//     }
+
+//     // Generate invoice number
+//     const invoiceNo = await generateInvoiceNumber();
+
+//     // Calculate total amount
+//     const totalAmount = items.reduce((sum, item) => {
+//       return sum + (item.quantity * item.rate);
+//     }, 0);
+
+//     // Create new challan
+//     const challan = new Challan({
+//       userCode,
+//       invoiceNo,
+//       date: new Date(),
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items: items.map(item => ({
+//         description: item.productName, // Change this to match schema
+//         quantity: item.quantity,
+//         rate: item.rate,
+//         amount: item.quantity * item.rate // Calculate amount for each item
+//       })),
+//       totalAmount,
+//       receiverName
+//     });
+
+//     await challan.save();
+
+//     res.json({
+//       message: 'Challan generated successfully',
+//       challan
+//     });
+//   } catch (error) {
+//     console.error('Challan generation error:', error);
+//     res.status(500).json({ 
+//       error: 'Error generating challan',
+//       details: error.message 
+//     });
+//   }
+// };
+
 exports.generateChallan = async (req, res) => {
   try {
     const {
@@ -98,17 +206,34 @@ exports.generateChallan = async (req, res) => {
       receiverName
     } = req.body;
 
+    // Validate input
     if (!userCode) {
       return res.status(400).json({ error: 'User code is required' });
+    }
+
+    // Validate items
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty items list' });
     }
 
     // Generate invoice number
     const invoiceNo = await generateInvoiceNumber();
 
-    // Calculate total amount
+    // Safely calculate total amount
     const totalAmount = items.reduce((sum, item) => {
-      return sum + (item.quantity * item.rate);
+      // Ensure each item has quantity and rate
+      const quantity = Number(item.quantity) || 0;
+      const rate = Number(item.rate) || 0;
+      return sum + (quantity * rate);
     }, 0);
+
+    // Prepare items for schema
+    const formattedItems = items.map(item => ({
+      description: item.productName || item.description || 'Unnamed Item',
+      quantity: Number(item.quantity) || 0,
+      rate: Number(item.rate) || 0,
+      amount: Number(item.quantity || 0) * Number(item.rate || 0)
+    }));
 
     // Create new challan
     const challan = new Challan({
@@ -118,11 +243,13 @@ exports.generateChallan = async (req, res) => {
       vehicleNo,
       driverName,
       mobileNo,
-      items,
+      items: formattedItems,
       totalAmount,
-      receiverName
+      receiverName,
+      dcNo: invoiceNo // Add this to resolve the unique index issue
     });
 
+    // Save the challan
     await challan.save();
 
     res.json({
@@ -131,14 +258,21 @@ exports.generateChallan = async (req, res) => {
     });
   } catch (error) {
     console.error('Challan generation error:', error);
+    
+    // More detailed error handling
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        error: 'Duplicate challan generated',
+        details: 'A challan with this number already exists'
+      });
+    }
+
     res.status(500).json({ 
       error: 'Error generating challan',
       details: error.message 
     });
   }
 };
-
-
 
 
 exports.getChallansByUserCode = async (req, res) => {

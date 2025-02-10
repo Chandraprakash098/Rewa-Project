@@ -46,6 +46,11 @@ const challanSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  dcNo: {
+    type: String,
+    unique: true, // This resolves the unique index issue
+    required: true
+  },
   date: {
     type: Date,
     required: true,
