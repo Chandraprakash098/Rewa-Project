@@ -73,7 +73,7 @@ exports.getProcessingOrders= async (req, res) => {
     const orders = await Order.find({
       orderStatus: 'processing'
     })
-    .populate('user', 'name customerDetails.firmName customerDetails.userCode')
+    .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
     .populate('products.product')
     .sort({ createdAt: -1 });
 
