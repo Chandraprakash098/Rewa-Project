@@ -93,9 +93,9 @@
 
 // module.exports = marketingController;
 
-
 const MarketingActivity = require('../models/MarketingActivity');
 const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
 
 const marketingController = {
   addActivity: async (req, res) => {
@@ -126,23 +126,22 @@ const marketingController = {
 
       if (uploadedFiles && uploadedFiles.length > 0) {
         try {
-          const imageUploadPromises = uploadedFiles.map(async file => {
-            try {
-              // Convert buffer to base64 string for Cloudinary
-              const base64Data = file.buffer.toString('base64');
-              const dataURI = `data:${file.mimetype};base64,${base64Data}`;
-              
-              const result = await cloudinary.uploader.upload(dataURI, {
-                folder: 'marketing-activities',
-                allowed_formats: ['jpg', 'jpeg', 'png'],
-                resource_type: 'auto'
-              });
-              
-              return result.secure_url;
-            } catch (error) {
-              console.error('Error uploading to cloudinary:', error);
-              throw error;
-            }
+          const imageUploadPromises = uploadedFiles.map(file => {
+            return new Promise((resolve, reject) => {
+              const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                  folder: 'marketing-activities',
+                  allowed_formats: ['jpg', 'jpeg', 'png'],
+                  resource_type: 'auto'
+                },
+                (error, result) => {
+                  if (error) reject(error);
+                  else resolve(result.secure_url);
+                }
+              );
+
+              streamifier.createReadStream(file.buffer).pipe(uploadStream);
+            });
           });
 
           activity.images = await Promise.all(imageUploadPromises);
