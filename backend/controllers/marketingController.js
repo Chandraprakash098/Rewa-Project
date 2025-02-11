@@ -94,10 +94,8 @@
 // module.exports = marketingController;
 
 
-
 const MarketingActivity = require('../models/MarketingActivity');
 const cloudinary = require('../config/cloudinary');
-const fs = require('fs').promises;
 
 const marketingController = {
   addActivity: async (req, res) => {
@@ -110,13 +108,9 @@ const marketingController = {
         });
       }
 
-      const uploadedImages = req.files;
+      const uploadedFiles = req.files;
       
-      if (uploadedImages && uploadedImages.length > 3) {
-        // Clean up uploaded files
-        await Promise.all(uploadedImages.map(file => 
-          fs.unlink(file.path).catch(err => console.error('Error deleting file:', err))
-        ));
+      if (uploadedFiles && uploadedFiles.length > 3) {
         return res.status(400).json({ 
           error: 'Maximum 3 images allowed' 
         });
@@ -130,17 +124,20 @@ const marketingController = {
         images: []
       });
 
-      if (uploadedImages && uploadedImages.length > 0) {
+      if (uploadedFiles && uploadedFiles.length > 0) {
         try {
-          const imageUploadPromises = uploadedImages.map(async file => {
+          const imageUploadPromises = uploadedFiles.map(async file => {
             try {
-              const result = await cloudinary.uploader.upload(file.path, {
+              // Convert buffer to base64 string for Cloudinary
+              const base64Data = file.buffer.toString('base64');
+              const dataURI = `data:${file.mimetype};base64,${base64Data}`;
+              
+              const result = await cloudinary.uploader.upload(dataURI, {
                 folder: 'marketing-activities',
                 allowed_formats: ['jpg', 'jpeg', 'png'],
                 resource_type: 'auto'
               });
-              // Clean up uploaded file after successful upload to cloudinary
-              await fs.unlink(file.path);
+              
               return result.secure_url;
             } catch (error) {
               console.error('Error uploading to cloudinary:', error);
@@ -150,10 +147,7 @@ const marketingController = {
 
           activity.images = await Promise.all(imageUploadPromises);
         } catch (uploadError) {
-          // Clean up any remaining files
-          await Promise.all(uploadedImages.map(file => 
-            fs.unlink(file.path).catch(err => console.error('Error deleting file:', err))
-          ));
+          console.error('Error uploading images:', uploadError);
           return res.status(400).json({ 
             error: 'Error uploading images' 
           });
@@ -168,12 +162,6 @@ const marketingController = {
       });
     } catch (error) {
       console.error('Error logging marketing activity:', error);
-      // Clean up uploaded files in case of error
-      if (req.files) {
-        await Promise.all(req.files.map(file => 
-          fs.unlink(file.path).catch(err => console.error('Error deleting file:', err))
-        ));
-      }
       res.status(500).json({ 
         error: 'Error logging marketing activity' 
       });
