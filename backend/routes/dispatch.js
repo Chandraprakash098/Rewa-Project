@@ -36,4 +36,6 @@ router.post(
   router.post("/check-out", dispatchController.checkOut);
 router.get('/daily-orders', dispatchController.getDailyDispatchOrders);
 
+router.get('/challan/:challanId/download', dispatchController.downloadChallan);
+
 module.exports = router;

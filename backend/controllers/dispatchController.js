@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
 const Challan = require('../models/Challan'); 
-
+const generateChallanPDF = require('../utils/pdfgen');
 
 //for Test
 
@@ -195,6 +195,34 @@ exports.getProcessingOrders= async (req, res) => {
 //   }
 // };
 
+
+exports.downloadChallan = async (req, res) => {
+  try {
+    const { challanId } = req.params;
+
+    const challan = await Challan.findById(challanId);
+    if (!challan) {
+      return res.status(404).json({ error: 'Challan not found' });
+    }
+
+    const pdfBuffer = await generateChallanPDF(challan);
+
+    // Set response headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=challan-${challan.dcNo}.pdf`);
+    
+    // Send the PDF buffer
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('Error downloading challan:', error);
+    res.status(500).json({ 
+      error: 'Error downloading challan',
+      details: error.message 
+    });
+  }
+};
+
 exports.generateChallan = async (req, res) => {
   try {
     const {
@@ -250,11 +278,19 @@ exports.generateChallan = async (req, res) => {
     });
 
     // Save the challan
-    await challan.save();
+    // await challan.save();
+
+    const savedChallan = await challan.save();
+
+    // res.json({
+    //   message: 'Challan generated successfully',
+    //   challan
+    // });
 
     res.json({
       message: 'Challan generated successfully',
-      challan
+      challan: savedChallan,
+      downloadUrl: `/api/dispatch/challan/${savedChallan._id}/download` // Add download URL
     });
   } catch (error) {
     console.error('Challan generation error:', error);
