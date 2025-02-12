@@ -255,7 +255,7 @@ async checkIn(req, res) {
       // Check if already checked in for selected date
       const existingAttendance = await Attendance.findOne({
           user: req.user._id,
-          panel: 'dispatch',
+          panel: 'stock',
           selectedDate: checkInDate,
           $or: [{ status: 'checked-in' }, { status: 'present' }]
       });
