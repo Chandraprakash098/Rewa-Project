@@ -4,6 +4,7 @@ const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
 const Challan = require('../models/Challan'); 
 const generateChallanPDF = require('../utils/pdfgen');
+const streamifier = require('streamifier');
 
 //for Test
 
@@ -264,70 +265,135 @@ exports.getChallansByUserCode = async (req, res) => {
 
 
 
+// exports.checkIn = async (req, res) => {
+//   try {
+//     const { selectedDate } = req.body;
+
+//     if (!req.file) {
+//       return res.status(400).json({
+//         error: 'Please upload a check-in image'
+//       });
+//     }
+
+//     if (!selectedDate) {
+//       return res.status(400).json({
+//         error: 'Please select a date for check-in'
+//       });
+//     }
+
+//     // Convert selectedDate to start of day
+//     const checkInDate = new Date(selectedDate);
+//     checkInDate.setHours(0, 0, 0, 0);
+
+//     // Check if already checked in for selected date
+//     const existingAttendance = await Attendance.findOne({
+//       user: req.user._id,
+//       panel: 'dispatch',
+//       selectedDate: checkInDate,
+//       $or: [{ status: 'checked-in' }, { status: 'present' }]
+//     });
+
+//     if (existingAttendance) {
+//       return res.status(400).json({
+//         error: 'Already checked in for this date'
+//       });
+//     }
+
+//     // Upload image to Cloudinary
+//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+//       folder: 'check-in-photos',
+//       resource_type: 'image'
+//     });
+
+//     // Create new attendance record
+//     const attendance = new Attendance({
+//       user: req.user._id,
+//       panel: 'dispatch',
+//       checkInTime: new Date(),
+//       selectedDate: checkInDate,
+//       status: 'present',
+//       checkInImage: cloudinaryResponse.secure_url
+//     });
+
+//     await attendance.save();
+
+//     res.json({
+//       message: 'Check-in successful',
+//       attendance
+//     });
+//   } catch (error) {
+//     console.error('Check-in error:', error);
+//     res.status(500).json({
+//       error: 'Error during check-in',
+//       details: error.message
+//     });
+//   }
+// }
+
 exports.checkIn = async (req, res) => {
   try {
-    const { selectedDate } = req.body;
+      const { selectedDate } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({
-        error: 'Please upload a check-in image'
+      if (!req.file) {
+          return res.status(400).json({ error: 'Please upload a check-in image' });
+      }
+
+      if (!selectedDate) {
+          return res.status(400).json({ error: 'Please select a date for check-in' });
+      }
+
+      // Convert selectedDate to start of day
+      const checkInDate = new Date(selectedDate);
+      checkInDate.setHours(0, 0, 0, 0);
+
+      // Check if already checked in for selected date
+      const existingAttendance = await Attendance.findOne({
+          user: req.user._id,
+          panel: 'dispatch',
+          selectedDate: checkInDate,
+          $or: [{ status: 'checked-in' }, { status: 'present' }]
       });
-    }
 
-    if (!selectedDate) {
-      return res.status(400).json({
-        error: 'Please select a date for check-in'
+      if (existingAttendance) {
+          return res.status(400).json({ error: 'Already checked in for this date' });
+      }
+
+      // Upload buffer to Cloudinary using stream
+      const uploadPromise = new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                  folder: 'check-in-photos',
+                  resource_type: 'image'
+              },
+              (error, result) => {
+                  if (error) reject(error);
+                  else resolve(result);
+              }
+          );
+          
+          streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
       });
-    }
 
-    // Convert selectedDate to start of day
-    const checkInDate = new Date(selectedDate);
-    checkInDate.setHours(0, 0, 0, 0);
+      const cloudinaryResponse = await uploadPromise;
 
-    // Check if already checked in for selected date
-    const existingAttendance = await Attendance.findOne({
-      user: req.user._id,
-      panel: 'dispatch',
-      selectedDate: checkInDate,
-      $or: [{ status: 'checked-in' }, { status: 'present' }]
-    });
-
-    if (existingAttendance) {
-      return res.status(400).json({
-        error: 'Already checked in for this date'
+      // Create new attendance record
+      const attendance = new Attendance({
+          user: req.user._id,
+          panel: 'dispatch',
+          checkInTime: new Date(),
+          selectedDate: checkInDate,
+          status: 'present',
+          checkInImage: cloudinaryResponse.secure_url
       });
-    }
 
-    // Upload image to Cloudinary
-    const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'check-in-photos',
-      resource_type: 'image'
-    });
+      await attendance.save();
 
-    // Create new attendance record
-    const attendance = new Attendance({
-      user: req.user._id,
-      panel: 'dispatch',
-      checkInTime: new Date(),
-      selectedDate: checkInDate,
-      status: 'present',
-      checkInImage: cloudinaryResponse.secure_url
-    });
-
-    await attendance.save();
-
-    res.json({
-      message: 'Check-in successful',
-      attendance
-    });
+      res.json({ message: 'Check-in successful', attendance });
   } catch (error) {
-    console.error('Check-in error:', error);
-    res.status(500).json({
-      error: 'Error during check-in',
-      details: error.message
-    });
+      console.error('Check-in error:', error);
+      res.status(500).json({ error: 'Error during check-in', details: error.message });
   }
-}
+};
 
 exports.checkOut = async (req, res) => {
   try {
