@@ -5,7 +5,8 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
-const Product= require('../models/Product')
+const Product= require('../models/Product');
+const streamifier = require('streamifier');
 
 
 const generateUserCode = async () => {

@@ -2,6 +2,7 @@ const Stock = require('../models/Stock');
 const Product = require('../models/Product');
 const Attendance = require('../models/Attendance')
 const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
 
 class StockController {
     // Get all products with their quantities
