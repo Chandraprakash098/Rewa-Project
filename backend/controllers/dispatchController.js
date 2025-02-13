@@ -72,7 +72,7 @@ exports.updateOrderStatus= async (req, res) => {
 exports.getProcessingOrders= async (req, res) => {
   try {
     const orders = await Order.find({
-      orderStatus: 'processing'
+      orderStatus: { $in: ['processing', 'confirmed', 'shipped'] } 
     })
     .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
     .populate('products.product')
