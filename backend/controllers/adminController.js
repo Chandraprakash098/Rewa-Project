@@ -294,15 +294,93 @@ const adminController = {
   },
 
 
+  // createProduct: async (req, res) => {
+  //   try {
+  //     const { 
+  //       name, 
+  //       type,
+  //       category,
+  //       description, 
+  //       originalPrice, 
+  //       discountedPrice, 
+  //       quantity,
+  //       validFrom,
+  //       validTo
+  //     } = req.body;
+  
+  //     // Validate category based on type
+  //     const validCategories = Product.getCategoriesByType(type);
+  //     if (!validCategories.includes(category)) {
+  //       return res.status(400).json({ 
+  //         error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}` 
+  //       });
+  //     }
+  
+  //     // Validate offer dates if discount is provided
+  //     if (discountedPrice) {
+  //       if (!validFrom || !validTo) {
+  //         return res.status(400).json({
+  //           error: 'validFrom and validTo dates are required when setting a discounted price'
+  //         });
+  //       }
+  
+  //       const fromDate = new Date(validFrom);
+  //       const toDate = new Date(validTo);
+  //       const now = new Date();
+  
+  //       if (fromDate > toDate) {
+  //         return res.status(400).json({
+  //           error: 'validTo date must be after validFrom date'
+  //         });
+  //       }
+  //     }
+  
+  //     let imageUrl = null;
+  
+  //     if (req.file) {
+  //       const imageBuffer = require('fs').readFileSync(req.file.path);
+  //       const b64 = Buffer.from(imageBuffer).toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+  
+  //       imageUrl = result.secure_url;
+  //       require('fs').unlinkSync(req.file.path);
+  //     }
+  
+  //     const product = new Product({
+  //       name,
+  //       type,
+  //       category,
+  //       description,
+  //       originalPrice: Number(originalPrice),
+  //       discountedPrice: discountedPrice ? Number(discountedPrice) : null,
+  //       quantity,
+  //       image: imageUrl,
+  //       validFrom: validFrom || null,
+  //       validTo: validTo || null
+  //     });
+  
+  //     await product.save();
+  //     res.status(201).json({ product });
+  //   } catch (error) {
+  //     console.error('Error creating product:', error);
+  //     res.status(500).json({ error: error.message || 'Error creating product' });
+  //   }
+  // },
+
   createProduct: async (req, res) => {
     try {
-      const { 
-        name, 
+      const {
+        name,
         type,
         category,
-        description, 
-        originalPrice, 
-        discountedPrice, 
+        description,
+        originalPrice,
+        discountedPrice,
         quantity,
         validFrom,
         validTo
@@ -311,8 +389,8 @@ const adminController = {
       // Validate category based on type
       const validCategories = Product.getCategoriesByType(type);
       if (!validCategories.includes(category)) {
-        return res.status(400).json({ 
-          error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}` 
+        return res.status(400).json({
+          error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}`
         });
       }
   
@@ -338,8 +416,8 @@ const adminController = {
       let imageUrl = null;
   
       if (req.file) {
-        const imageBuffer = require('fs').readFileSync(req.file.path);
-        const b64 = Buffer.from(imageBuffer).toString('base64');
+        // Convert buffer to base64
+        const b64 = req.file.buffer.toString('base64');
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
   
         const result = await cloudinary.uploader.upload(dataURI, {
@@ -348,7 +426,6 @@ const adminController = {
         });
   
         imageUrl = result.secure_url;
-        require('fs').unlinkSync(req.file.path);
       }
   
       const product = new Product({
