@@ -772,7 +772,7 @@ getDashboardStats : async (req, res) => {
       processing: await Order.countDocuments({ orderStatus: 'processing' }),
       confirmed: await Order.countDocuments({ orderStatus: 'confirmed' }),
       shipped: await Order.countDocuments({ orderStatus: 'shipped' }),
-      delivered: await Order.countDocuments({ orderStatus: 'delivered' }),
+      // delivered: await Order.countDocuments({ orderStatus: 'delivered' }),
       cancelled: await Order.countDocuments({ orderStatus: 'cancelled' })
     };
 
