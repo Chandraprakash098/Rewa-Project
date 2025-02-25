@@ -1,98 +1,4 @@
 
-// const mongoose = require('mongoose');
-
-// const productSchema = new mongoose.Schema({
-//   name: {
-//     type: String,
-//     required: true
-//   },
-//   type: {
-//     type: String,
-//     required: true,
-//     enum: ['Bottle', 'Raw Material']
-//   },
-//   category: {
-//     type: String,
-//     required: true, // Now required for both types
-//     validate: {
-//       validator: function(value) {
-//         if (this.type === 'Bottle') {
-//           return ['500ml', '1L', '2L', '5L'].includes(value);
-//         } else if (this.type === 'Raw Material') {
-//           return ['Type 1', 'Type 2', 'Type 3'].includes(value);
-//         }
-//         return false;
-//       },
-//       message: 'Invalid category for the selected type'
-//     }
-//   },
-//   description: String,
-//   originalPrice: {
-//     type: Number,
-//     required: true
-//   },
-//   discountedPrice: {
-//     type: Number
-//   },
-//   quantity: {
-//     type: Number,
-//     required: true
-//   },
-//   image: String,
-//   isActive: {
-//     type: Boolean,
-//     default: true
-//   },
-//   createdAt: {
-//     type: Date,
-//     default: Date.now
-//   }
-// });
-
-// // Existing virtuals remain the same
-// productSchema.virtual('discountPercentage').get(function() {
-//   if (this.discountedPrice && this.originalPrice) {
-//     const discount = ((this.originalPrice - this.discountedPrice) / this.originalPrice) * 100;
-//     return Math.round(discount);
-//   }
-//   return 0;
-// });
-
-// productSchema.virtual('isOffer').get(function() {
-//   return Boolean(this.discountedPrice && this.discountedPrice < this.originalPrice);
-// });
-
-// productSchema.statics.getCategoriesByType = function(type) {
-//   if (type === 'Bottle') {
-//     return ['500ml', '1L', '2L', '5L'];
-//   } else if (type === 'Raw Material') {
-//     return ['Type 1', 'Type 2', 'Type 3'];
-//   }
-//   return [];
-// };
-
-// productSchema.set('toJSON', {
-//   virtuals: true,
-//   transform: function(doc, ret) {
-//     ret.price = ret.discountedPrice || ret.originalPrice;
-    
-//     if (ret.discountedPrice && ret.discountedPrice < ret.originalPrice) {
-//       ret.discountTag = `${ret.discountPercentage}% OFF`;
-//     } else {
-//       delete ret.discountedPrice;
-//       delete ret.discountPercentage;
-//       delete ret.discountTag;
-//     }
-    
-//     return ret;
-//   }
-// });
-
-// module.exports = mongoose.model('Product', productSchema);
-
-
-
-
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
@@ -111,9 +17,9 @@ const productSchema = new mongoose.Schema({
     validate: {
       validator: function(value) {
         if (this.type === 'Bottle') {
-          return ['500ml', '1L', '2L', '5L'].includes(value);
+          return ['200ml','250ml','500ml', '1L', '2L', '5L'].includes(value);
         } else if (this.type === 'Raw Material') {
-          return ['Type 1', 'Type 2', 'Type 3'].includes(value);
+          return ['25 mm Plastic ROPP Cap','Narrow Neck Cap','Pet Preforms','26/22 Shortneck caps','27mm Alaska caps'].includes(value);
         }
         return false;
       },
@@ -192,9 +98,9 @@ productSchema.virtual('isOffer').get(function() {
 
 productSchema.statics.getCategoriesByType = function(type) {
   if (type === 'Bottle') {
-    return ['500ml', '1L', '2L', '5L'];
+    return ['200ml','250ml','500ml', '1L', '2L', '5L'];
   } else if (type === 'Raw Material') {
-    return ['Type 1', 'Type 2', 'Type 3'];
+    return ['25 mm Plastic ROPP Cap','Narrow Neck Cap','Pet Preforms','26/22 Shortneck caps','27mm Alaska caps'];
   }
   return [];
 };
