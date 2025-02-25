@@ -38,4 +38,8 @@ router.get('/daily-orders', dispatchController.getDailyDispatchOrders);
 
 router.get('/challan/:challanId/download', dispatchController.downloadChallan);
 
+router.patch('/orders/:orderId/cod-payment-status', 
+  dispatchController.updateCODPaymentStatus
+);
+
 module.exports = router;

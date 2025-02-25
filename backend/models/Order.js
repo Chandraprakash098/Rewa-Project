@@ -155,12 +155,38 @@ const orderSchema = new mongoose.Schema({
     required: true,
     enum: ['UPI', 'netBanking', 'COD', 'Debit Card']
   },
+  // paymentStatus: {
+  //   type: String,
+  //   required: true,
+  //   enum: ['pending', 'completed', 'failed'],
+  //   default: 'pending'
+  // },
+
   paymentStatus: {
     type: String,
     required: true,
-    enum: ['pending', 'completed', 'failed'],
+    enum: [
+      'pending', 
+      'completed', 
+      'failed',
+      'payment_received_by_driver', // New status
+      'cash_paid_offline'           // New status
+    ],
     default: 'pending'
   },
+  // Add payment history tracking
+  paymentStatusHistory: [{
+    status: String,
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    },
+    notes: String // Optional notes for the status change
+  }],
   orderStatus: {
     type: String,
     required: true,
@@ -235,6 +261,13 @@ orderSchema.pre('save', function(next) {
     this.statusHistory.push({
       status: this.orderStatus,
       updatedBy: this._updatedBy, // Set by the controller
+      updatedAt: new Date()
+    });
+  }
+  if (this.isModified('paymentStatus')) {
+    this.paymentStatusHistory.push({
+      status: this.paymentStatus,
+      updatedBy: this._updatedBy,
       updatedAt: new Date()
     });
   }

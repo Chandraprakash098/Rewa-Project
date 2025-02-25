@@ -459,4 +459,85 @@ exports.getDailyDispatchOrders = async (req, res) => {
   }
 }
 
+// In dispatchController.js
+exports.updateCODPaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { paymentStatus, notes } = req.body;
+
+    // Valid COD-specific payment statuses
+    const validCODStatuses = [
+      'pending',
+      'payment_received_by_driver',
+      'cash_paid_offline'
+    ];
+
+    // Check if the provided status is valid
+    if (!validCODStatuses.includes(paymentStatus)) {
+      return res.status(400).json({ 
+        error: 'Invalid payment status for COD order' 
+      });
+    }
+
+    // Find the order
+    const order = await Order.findById(orderId)
+      .populate('user', 'name customerDetails.userCode');
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Check if the order uses COD payment method
+    if (order.paymentMethod !== 'COD') {
+      return res.status(400).json({ 
+        error: 'This action is only allowed for COD orders' 
+      });
+    }
+
+    // Check if the user has dispatch role
+    if (req.user.role !== 'dispatch') {
+      return res.status(403).json({ 
+        error: 'Only dispatch personnel can update COD payment status' 
+      });
+    }
+
+    // Prevent changing status if payment is already completed or failed
+    if (['completed', 'failed'].includes(order.paymentStatus)) {
+      return res.status(400).json({ 
+        error: 'Cannot modify payment status after completion or failure' 
+      });
+    }
+
+    // Update the payment status
+    order._updatedBy = req.user._id;
+    order.paymentStatus = paymentStatus;
+
+    // Add to payment status history
+    order.paymentStatusHistory.push({
+      status: paymentStatus,
+      updatedBy: req.user._id,
+      notes: notes || `Updated by ${req.user.name}`
+    });
+
+    await order.save();
+
+    res.json({ 
+      message: 'COD payment status updated successfully',
+      order: {
+        orderId: order._id,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        updatedBy: req.user.name,
+        updatedAt: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Error updating COD payment status:', error);
+    res.status(500).json({ 
+      error: 'Error updating COD payment status',
+      details: error.message 
+    });
+  }
+};
+
 
