@@ -425,11 +425,11 @@ createOrderAsReception : async (req, res) => {
               });
           }
 
-          if (product.quantity < item.quantity) {
-              return res.status(400).json({
-                  error: `Insufficient stock for ${product.name}`
-              });
-          }
+          // if (product.quantity < item.quantity) {
+          //     return res.status(400).json({
+          //         error: `Insufficient stock for ${product.name}`
+          //     });
+          // }
 
           const isValidOffer = product.discountedPrice &&
               product.validFrom &&
@@ -500,40 +500,6 @@ createOrderAsReception : async (req, res) => {
   }
 },
 
-
-  
-  // getOrderHistory: async (req, res) => {
-  //   try {
-  //     const thirtyFiveDaysAgo = new Date();
-  //     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
-
-  //     // const orders = await Order.find({
-  //     //   createdAt: { $gte: thirtyFiveDaysAgo }
-  //     // })
-  //     // .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode role')
-  //     // .populate('products.product', 'name price quantity')
-  //     // .populate('createdByReception', 'name')
-  //     // .sort({ createdAt: -1 });
-
-  //     const orders = await Order.find({
-  //          createdAt: { $gte: thirtyFiveDaysAgo }})
-  //             .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
-  //             .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
-  //             .populate('products.product', 'name type quantity')
-  //             .sort({ createdAt: -1 });
-
-  //     const formattedOrders = orders.map(order => ({
-  //       ...order.toObject(),
-  //       orderSource: order.createdByReception ? 
-  //         `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}` :
-  //         `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
-  //     }));
-
-  //     res.json({ orders: formattedOrders });
-  //   } catch (error) {
-  //     res.status(500).json({ error: 'Error fetching order history' });
-  //   }
-  // },
 
 
 
@@ -903,71 +869,6 @@ addDeliveryCharge: async (req, res) => {
   }
 },
 
-
-// getMiscellaneousPanelAccess : async (req, res) => {
-//   try {
-//     const { name, email } = req.body;
-
-//     if (!name || !email) {
-//       return res.status(400).json({ error: 'Name and email are required' });
-//     }
-
-//     // Find or create miscellaneous user
-//     let miscUser = await User.findOne({ 
-//       email, 
-//       role: 'miscellaneous'
-//     });
-
-//     if (!miscUser) {
-//       // Generate a unique user code
-//       const userCode = await generateUserCode();
-      
-//       miscUser = new User({
-//         name,
-//         email,
-//         role: 'miscellaneous',
-//         password: Math.random().toString(36).slice(-8), // Random password as it's not used
-//         phoneNumber: '0000000000', // Default phone number
-//         isActive: true,
-//         customerDetails: {
-//           firmName: `${name} (Miscellaneous)`,
-//           userCode: userCode,
-//           address: 'Walk-in Customer' // Default address
-//         }
-//       });
-//       await miscUser.save();
-//     }
-
-//     // Generate special token for reception user panel access
-//     const token = jwt.sign(
-//       {
-//         userId: req.user._id,         // Reception user ID
-//         customerId: miscUser._id,     // Miscellaneous user ID
-//         isReceptionAccess: true,
-//         isMiscellaneous: true
-//       },
-//       process.env.JWT_SECRET,
-//       { expiresIn: '4h' }
-//     );
-
-//     res.json({
-//       success: true,
-//       token,
-//       customer: {
-//         name: miscUser.name,
-//         email: miscUser.email,
-//         firmName: miscUser.customerDetails?.firmName,
-//         userCode: miscUser.customerDetails?.userCode
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Get miscellaneous panel access error:', error);
-//     res.status(500).json({
-//       error: 'Error generating miscellaneous panel access',
-//       details: error.message
-//     });
-//   }
-// },
 
 
 getMiscellaneousPanelAccess: async (req, res) => {

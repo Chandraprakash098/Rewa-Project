@@ -371,13 +371,13 @@ const paymentController = {
           });
         }
   
-        if (product.quantity < item.quantity) {
-          return res.status(400).json({
-            error: `Not enough stock for ${product.name}`,
-            availableStock: product.quantity,
-            requestedQuantity: item.quantity
-          });
-        }
+        // if (product.quantity < item.quantity) {
+        //   return res.status(400).json({
+        //     error: `Not enough stock for ${product.name}`,
+        //     availableStock: product.quantity,
+        //     requestedQuantity: item.quantity
+        //   });
+        // }
   
         const price = product.discountedPrice || product.originalPrice;
         totalAmount += price * item.quantity;

@@ -252,6 +252,14 @@ const orderSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  expiresAt: {
+    type: Date,
+    default: function() {
+      const date = new Date(this.createdAt);
+      date.setDate(date.getDate() + 35); // Set expiration to 35 days from createdAt
+      return date;
+    }
   }
 });
 
