@@ -695,6 +695,45 @@ checkUserStatus : async (req, res, next) => {
 
 //For Marketing
 
+// getAllMarketingActivities: async (req, res) => {
+//   try {
+//     const activities = await MarketingActivity.find({})
+//       .populate('marketingUser', 'name email customerDetails.firmName')
+//       .sort({ createdAt: -1 });
+
+//     res.json({ activities });
+//   } catch (error) {
+//     console.error('Error fetching marketing activities:', error);
+//     res.status(500).json({ error: 'Error fetching marketing activities' });
+//   }
+// },
+
+// // Review marketing activity
+// reviewMarketingActivity: async (req, res) => {
+//   try {
+//     const activity = await MarketingActivity.findById(req.params.activityId);
+    
+//     if (!activity) {
+//       return res.status(404).json({ error: 'Activity not found' });
+//     }
+
+//     activity.status = 'reviewed';
+//     activity.reviewedAt = new Date();
+//     activity.reviewedBy = req.user._id;
+    
+//     await activity.save();
+
+//     res.json({ 
+//       message: 'Marketing activity reviewed successfully',
+//       activity 
+//     });
+//   } catch (error) {
+//     console.error('Error reviewing marketing activity:', error);
+//     res.status(500).json({ error: 'Error reviewing marketing activity' });
+//   }
+// },
+
+
 getAllMarketingActivities: async (req, res) => {
   try {
     const activities = await MarketingActivity.find({})
@@ -708,7 +747,6 @@ getAllMarketingActivities: async (req, res) => {
   }
 },
 
-// Review marketing activity
 reviewMarketingActivity: async (req, res) => {
   try {
     const activity = await MarketingActivity.findById(req.params.activityId);

@@ -1,22 +1,29 @@
+
+
+
 // const MarketingActivity = require('../models/MarketingActivity');
 // const cloudinary = require('../config/cloudinary');
-// const upload = require('../config/multer');
+// const streamifier = require('streamifier');
 
 // const marketingController = {
-//   // Add new marketing activity with image upload
 //   addActivity: async (req, res) => {
 //     try {
 //       const { customerName, discussion, location } = req.body;
       
-//       // Check if files were uploaded
-//       const uploadedImages = req.files;
-      
-//       // Validate number of images
-//       if (uploadedImages && uploadedImages.length > 3) {
-//         return res.status(400).json({ error: 'Maximum 3 images allowed' });
+//       if (!customerName || !discussion || !location) {
+//         return res.status(400).json({ 
+//           error: 'Missing required fields' 
+//         });
 //       }
 
-//       // Prepare activity object
+//       const uploadedFiles = req.files;
+      
+//       if (uploadedFiles && uploadedFiles.length > 3) {
+//         return res.status(400).json({ 
+//           error: 'Maximum 3 images allowed' 
+//         });
+//       }
+
 //       const activity = new MarketingActivity({
 //         marketingUser: req.user._id,
 //         customerName,
@@ -25,53 +32,67 @@
 //         images: []
 //       });
 
-//       // Upload images to Cloudinary if present
-//       if (uploadedImages && uploadedImages.length > 0) {
-//         const imageUploadPromises = uploadedImages.map(file => 
-//           new Promise((resolve, reject) => {
-//             cloudinary.uploader.upload(file.path, { 
-//               folder: 'marketing-activities',
-//               allowed_formats: ['jpg', 'jpeg', 'png']
-//             }, (error, result) => {
-//               if (error) reject(error);
-//               else resolve(result.secure_url);
-//             });
-//           })
-//         );
+//       if (uploadedFiles && uploadedFiles.length > 0) {
+//         try {
+//           const imageUploadPromises = uploadedFiles.map(file => {
+//             return new Promise((resolve, reject) => {
+//               const uploadStream = cloudinary.uploader.upload_stream(
+//                 {
+//                   folder: 'marketing-activities',
+//                   allowed_formats: ['jpg', 'jpeg', 'png'],
+//                   resource_type: 'auto'
+//                 },
+//                 (error, result) => {
+//                   if (error) reject(error);
+//                   else resolve(result.secure_url);
+//                 }
+//               );
 
-//         // Wait for all image uploads
-//         activity.images = await Promise.all(imageUploadPromises);
+//               streamifier.createReadStream(file.buffer).pipe(uploadStream);
+//             });
+//           });
+
+//           activity.images = await Promise.all(imageUploadPromises);
+//         } catch (uploadError) {
+//           console.error('Error uploading images:', uploadError);
+//           return res.status(400).json({ 
+//             error: 'Error uploading images' 
+//           });
+//         }
 //       }
 
-//       // Save the activity
 //       await activity.save();
       
-//       res.status(201).json({ 
+//       res.status(201).json({
 //         message: 'Marketing activity logged successfully',
-//         activity 
+//         activity
 //       });
 //     } catch (error) {
 //       console.error('Error logging marketing activity:', error);
-//       res.status(500).json({ error: 'Error logging marketing activity' });
+//       res.status(500).json({ 
+//         error: 'Error logging marketing activity' 
+//       });
 //     }
 //   },
 
-//   // Existing methods remain the same...
 //   getMyActivities: async (req, res) => {
 //     try {
 //       const activities = await MarketingActivity.find({ 
 //         marketingUser: req.user._id 
 //       })
-//       .sort({ createdAt: -1 });
+//       .sort({ createdAt: -1 })
+//       .populate('marketingUser', 'name email')
+//       .populate('reviewedBy', 'name role');
 
 //       res.json({ activities });
 //     } catch (error) {
 //       console.error('Error fetching marketing activities:', error);
-//       res.status(500).json({ error: 'Error fetching marketing activities' });
+//       res.status(500).json({ 
+//         error: 'Error fetching marketing activities' 
+//       });
 //     }
 //   },
 
-//   // Get activity details
 //   getActivityById: async (req, res) => {
 //     try {
 //       const activity = await MarketingActivity.findById(req.params.activityId)
@@ -79,17 +100,20 @@
 //         .populate('reviewedBy', 'name role');
 
 //       if (!activity) {
-//         return res.status(404).json({ error: 'Activity not found' });
+//         return res.status(404).json({ 
+//           error: 'Activity not found' 
+//         });
 //       }
 
 //       res.json({ activity });
 //     } catch (error) {
-//       res.status(500).json({ error: 'Error fetching activity details' });
+//       console.error('Error fetching activity details:', error);
+//       res.status(500).json({ 
+//         error: 'Error fetching activity details' 
+//       });
 //     }
 //   }
 // };
-
-
 
 // module.exports = marketingController;
 
@@ -101,11 +125,33 @@ const streamifier = require('streamifier');
 const marketingController = {
   addActivity: async (req, res) => {
     try {
-      const { customerName, discussion, location } = req.body;
+      const { 
+        customerName, 
+        customerMobile, 
+        discussion, 
+        location, 
+        visitType, 
+        inquiryType, 
+        remarks 
+      } = req.body;
       
-      if (!customerName || !discussion || !location) {
+      if (!customerName || !customerMobile || !discussion || !location || !visitType) {
         return res.status(400).json({ 
           error: 'Missing required fields' 
+        });
+      }
+
+      // Validate mobile number
+      if (!/^\d{10}$/.test(customerMobile)) {
+        return res.status(400).json({ 
+          error: 'Please provide a valid 10-digit mobile number' 
+        });
+      }
+
+      // Validate visitType
+      if (!['on_field', 'on_call'].includes(visitType)) {
+        return res.status(400).json({ 
+          error: 'Visit type must be either "on_field" or "on_call"' 
         });
       }
 
@@ -120,8 +166,12 @@ const marketingController = {
       const activity = new MarketingActivity({
         marketingUser: req.user._id,
         customerName,
+        customerMobile,
         discussion,
         location,
+        visitType,
+        inquiryType: inquiryType || '',
+        remarks: remarks || '',
         images: []
       });
 
