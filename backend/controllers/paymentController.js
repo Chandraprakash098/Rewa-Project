@@ -588,6 +588,7 @@ const paymentController = {
                 price: item.product.discountedPrice || item.product.originalPrice
             })),
             totalAmount: razorpayOrder.amount / 100,
+            totalAmountWithDelivery: razorpayOrder.amount / 100,
             paymentMethod,
             type: productType,
             shippingAddress: user.customerDetails.address,
