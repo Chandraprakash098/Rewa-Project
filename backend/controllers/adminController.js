@@ -668,6 +668,7 @@ const adminController = {
           firmName: order.firmName || order.user?.customerDetails?.firmName || 'N/A',
           userCode: order.user?.customerDetails?.userCode || 'N/A',
           phoneNumber: order.user?.phoneNumber || 'N/A',
+          email: order.user?.email || 'N/A',
           type: order.type,
           products: productsString,
           totalAmount: order.totalAmount,
