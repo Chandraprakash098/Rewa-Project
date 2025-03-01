@@ -842,23 +842,38 @@ getAllMarketingActivities: async (req, res) => {
 reviewMarketingActivity: async (req, res) => {
   try {
     const activity = await MarketingActivity.findById(req.params.activityId);
-    
+
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
     }
 
+    // Check if required fields are present
+    if (!activity.visitType || !activity.customerMobile) {
+      return res.status(400).json({
+        error: 'Cannot review activity: missing required fields (visitType or customerMobile)',
+      });
+    }
+
+    // Update the fields
     activity.status = 'reviewed';
     activity.reviewedAt = new Date();
     activity.reviewedBy = req.user._id;
-    
-    await activity.save();
 
-    res.json({ 
+    // Save with validation only for modified fields
+    await activity.save({ validateModifiedOnly: true });
+
+    res.json({
       message: 'Marketing activity reviewed successfully',
-      activity 
+      activity,
     });
   } catch (error) {
     console.error('Error reviewing marketing activity:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
     res.status(500).json({ error: 'Error reviewing marketing activity' });
   }
 },
