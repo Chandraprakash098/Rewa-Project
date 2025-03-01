@@ -552,7 +552,7 @@ const adminController = {
   
       const orders = await Order.find(query)
         .select('orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products')
-        .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+        .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type')
         .sort({ createdAt: -1 });
   
