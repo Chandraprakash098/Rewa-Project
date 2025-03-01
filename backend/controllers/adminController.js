@@ -617,7 +617,7 @@ const adminController = {
     try {
       // Fetch all orders with necessary population
       const orders = await Order.find({})
-        .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+        .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
         .populate('products.product', 'name type')
         .sort({ createdAt: -1 });
 
@@ -628,9 +628,10 @@ const adminController = {
       // Define column headers
       worksheet.columns = [
         { header: 'Order ID', key: 'orderId', width: 20 },
-        { header: 'User Name', key: 'userName', width: 20 },
+        { header: 'Customer Name', key: 'userName', width: 20 },
         { header: 'Firm Name', key: 'firmName', width: 25 },
         { header: 'User Code', key: 'userCode', width: 15 },
+        { header: 'Email', key: 'email', width: 15 },
         { header: 'Phone Number', key: 'phoneNumber', width: 15 },
         { header: 'Type', key: 'type', width: 15 },
         { header: 'Products', key: 'products', width: 40 },
