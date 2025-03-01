@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const MarketingActivity = require('../models/MarketingActivity');
 const Attendance = require('../models/Attendance')
 const UserActivity = require('../models/UserActivity')
+const ExcelJS = require('exceljs');
 // const passwordCache = new Map();
 
 const adminController = {
@@ -608,6 +609,95 @@ const adminController = {
     } catch (error) {
       console.error('Error updating order status:', error);
       res.status(500).json({ error: 'Error updating order status' });
+    }
+  },
+
+
+  downloadOrderHistory: async (req, res) => {
+    try {
+      // Fetch all orders with necessary population
+      const orders = await Order.find({})
+        .populate('user', 'name phoneNumber customerDetails.firmName customerDetails.userCode')
+        .populate('products.product', 'name type')
+        .sort({ createdAt: -1 });
+
+      // Create a new Excel workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Order History');
+
+      // Define column headers
+      worksheet.columns = [
+        { header: 'Order ID', key: 'orderId', width: 20 },
+        { header: 'User Name', key: 'userName', width: 20 },
+        { header: 'Firm Name', key: 'firmName', width: 25 },
+        { header: 'User Code', key: 'userCode', width: 15 },
+        { header: 'Phone Number', key: 'phoneNumber', width: 15 },
+        { header: 'Type', key: 'type', width: 15 },
+        { header: 'Products', key: 'products', width: 40 },
+        { header: 'Total Amount', key: 'totalAmount', width: 15 },
+        { header: 'Delivery Charge', key: 'deliveryCharge', width: 15 },
+        { header: 'Total with Delivery', key: 'totalAmountWithDelivery', width: 20 },
+        { header: 'Payment Method', key: 'paymentMethod', width: 15 },
+        { header: 'Payment Status', key: 'paymentStatus', width: 15 },
+        { header: 'Order Status', key: 'orderStatus', width: 15 },
+        { header: 'Shipping Address', key: 'shippingAddress', width: 30 },
+        { header: 'GST Number', key: 'gstNumber', width: 20 },
+        { header: 'Created At', key: 'createdAt', width: 20 },
+        { header: 'Updated At', key: 'updatedAt', width: 20 },
+      ];
+
+      // Style the header row
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFDDDDDD' },
+      };
+
+      // Add data to the worksheet
+      orders.forEach((order) => {
+        const productsString = order.products
+          .map((p) => `${p.product.name} (Qty: ${p.quantity}, Price: ${p.price})`)
+          .join('; ');
+
+        worksheet.addRow({
+          orderId: order.orderId,
+          userName: order.user?.name || 'N/A',
+          firmName: order.firmName || order.user?.customerDetails?.firmName || 'N/A',
+          userCode: order.user?.customerDetails?.userCode || 'N/A',
+          phoneNumber: order.user?.phoneNumber || 'N/A',
+          type: order.type,
+          products: productsString,
+          totalAmount: order.totalAmount,
+          deliveryCharge: order.deliveryCharge,
+          totalAmountWithDelivery: order.totalAmountWithDelivery,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          orderStatus: order.orderStatus,
+          shippingAddress: order.shippingAddress,
+          gstNumber: order.gstNumber || 'N/A',
+          createdAt: order.createdAt.toLocaleString(),
+          updatedAt: order.updatedAt.toLocaleString(),
+        });
+      });
+
+      // Set response headers for file download
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="Order_History.xlsx"'
+      );
+
+      // Write the workbook to the response stream
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      console.error('Error generating order history Excel:', error);
+      res.status(500).json({ error: 'Error generating order history Excel file' });
     }
   },
 

@@ -29,6 +29,7 @@ router.delete('/products/:productId', adminController.deleteProduct);
 
 // Order Management
 router.get('/orders', adminController.getAllOrders);
+router.get('/download-order-history', adminController.downloadOrderHistory);
 // router.patch('/orders/:orderId/status', adminController.updateOrderStatus);
 
 router.get('/orders/preview', adminController.getPreviewOrders);
