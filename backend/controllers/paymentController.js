@@ -485,8 +485,8 @@ const paymentController = {
         const sign = razorpay_order_id + '|' + razorpay_payment_id;
         const expectedSign = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-            // .update(sign)
-            .update(sign.toString())
+            .update(sign)
+            // .update(sign.toString())
             .digest('hex');
 
         if (razorpay_signature !== expectedSign) {
