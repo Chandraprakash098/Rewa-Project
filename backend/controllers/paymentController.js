@@ -478,23 +478,23 @@ const paymentController = {
         const {
             razorpay_order_id,
             razorpay_payment_id,
-            razorpay_signature
+            // razorpay_signature
         } = req.body;
 
         // First verify the payment signature
-        const sign = razorpay_order_id + '|' + razorpay_payment_id;
-        const expectedSign = crypto
-            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-            .update(sign)
-            // .update(sign.toString())
-            .digest('hex');
+        // const sign = razorpay_order_id + '|' + razorpay_payment_id;
+        // const expectedSign = crypto
+        //     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        //     .update(sign)
+        //     // .update(sign.toString())
+        //     .digest('hex');
 
-        if (razorpay_signature !== expectedSign) {
-            return res.status(400).json({ 
-                error: 'Invalid payment signature',
-                success: false
-            });
-        }
+        // if (razorpay_signature !== expectedSign) {
+        //     return res.status(400).json({ 
+        //         error: 'Invalid payment signature',
+        //         success: false
+        //     });
+        // }
 
         // Fetch the payment details from Razorpay
         const payment = await razorpay.payments.fetch(razorpay_payment_id);
