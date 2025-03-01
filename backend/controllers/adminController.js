@@ -879,6 +879,88 @@ reviewMarketingActivity: async (req, res) => {
 },
 
 
+downloadAllMarketingActivities: async (req, res) => {
+  try {
+    // Fetch all marketing activities with populated marketingUser
+    const activities = await MarketingActivity.find({})
+      .populate('marketingUser', 'name email customerDetails.firmName')
+      .sort({ createdAt: -1 });
+
+    // Create a new Excel workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Marketing Activities');
+
+    // Define column headers based on the MarketingActivity schema
+    worksheet.columns = [
+      { header: 'Activity ID', key: '_id', width: 25 },
+      { header: 'Marketing User', key: 'marketingUserName', width: 20 },
+      { header: 'User Email', key: 'marketingUserEmail', width: 25 },
+      { header: 'Firm Name', key: 'firmName', width: 25 },
+      { header: 'Customer Name', key: 'customerName', width: 20 },
+      { header: 'Customer Mobile', key: 'customerMobile', width: 15 },
+      { header: 'Discussion', key: 'discussion', width: 40 },
+      { header: 'Location', key: 'location', width: 20 },
+      { header: 'Visit Type', key: 'visitType', width: 15 },
+      { header: 'Inquiry Type', key: 'inquiryType', width: 15 },
+      { header: 'Remarks', key: 'remarks', width: 30 },
+      { header: 'Images', key: 'images', width: 40 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Reviewed At', key: 'reviewedAt', width: 20 },
+      { header: 'Reviewed By', key: 'reviewedBy', width: 25 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+    ];
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDDDDDD' }, // Light gray background
+    };
+
+    // Add data to the worksheet
+    activities.forEach((activity) => {
+      worksheet.addRow({
+        _id: activity._id.toString(),
+        marketingUserName: activity.marketingUser?.name || 'N/A',
+        marketingUserEmail: activity.marketingUser?.email || 'N/A',
+        firmName: activity.marketingUser?.customerDetails?.firmName || 'N/A',
+        customerName: activity.customerName || 'N/A',
+        customerMobile: activity.customerMobile || 'N/A',
+        discussion: activity.discussion || 'N/A',
+        location: activity.location || 'N/A',
+        visitType: activity.visitType || 'N/A',
+        inquiryType: activity.inquiryType || 'N/A',
+        remarks: activity.remarks || 'N/A',
+        images: activity.images?.length > 0 ? activity.images.join('; ') : 'None',
+        status: activity.status || 'pending',
+        reviewedAt: activity.reviewedAt ? activity.reviewedAt.toLocaleString() : 'N/A',
+        reviewedBy: activity.reviewedBy ? activity.reviewedBy.toString() : 'N/A',
+        createdAt: activity.createdAt.toLocaleString(),
+      });
+    });
+
+    // Set response headers for file download
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Marketing_Activities.xlsx"'
+    );
+
+    // Write the workbook to the response stream
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error generating marketing activities Excel:', error);
+    res.status(500).json({ error: 'Error generating marketing activities Excel file' });
+  }
+},
+
+
 
 
 
