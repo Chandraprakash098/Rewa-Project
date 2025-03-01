@@ -87,10 +87,10 @@ const cartController = {
         return res.status(404).json({ error: 'Product not found' });
       }
 
-      // Check if product has enough stock
-      if (product.quantity < quantity) {
-        return res.status(400).json({ error: 'Not enough stock available' });
-      }
+      // // Check if product has enough stock
+      // if (product.quantity < quantity) {
+      //   return res.status(400).json({ error: 'Not enough stock available' });
+      // }
 
       // Find or create cart
       let cart = await Cart.findOne({ user: userId });
