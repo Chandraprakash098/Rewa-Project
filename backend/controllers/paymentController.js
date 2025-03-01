@@ -486,7 +486,7 @@ const paymentController = {
         const expectedSign = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             // .update(sign)
-            .update(body.toString())
+            .update(sign.toString())
             .digest('hex');
 
         if (razorpay_signature !== expectedSign) {
