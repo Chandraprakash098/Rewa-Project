@@ -124,6 +124,7 @@ productSchema.set('toJSON', {
       delete ret.discountedPrice;
       delete ret.discountPercentage;
       delete ret.discountTag;
+      delete ret.offerEndsIn;
     }
     
     return ret;
