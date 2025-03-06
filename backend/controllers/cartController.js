@@ -156,13 +156,13 @@ const cartController = {
       }
 
       // Check stock availability (uncommented and aligned with paymentController)
-      if (product.quantity < quantity) {
-        return res.status(400).json({ 
-          error: `Not enough stock available for ${product.name}`,
-          availableStock: product.quantity,
-          requestedQuantity: quantity
-        });
-      }
+      // if (product.quantity < quantity) {
+      //   return res.status(400).json({ 
+      //     error: `Not enough stock available for ${product.name}`,
+      //     availableStock: product.quantity,
+      //     requestedQuantity: quantity
+      //   });
+      // }
 
       // Check offer status
       const now = new Date();
