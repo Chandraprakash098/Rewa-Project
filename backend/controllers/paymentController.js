@@ -294,11 +294,191 @@ const razorpay = new Razorpay({
 });
 
 const paymentController = {
-   createOrder : async (req, res) => {
+
+
+  //  createOrder : async (req, res) => {
+  //   try {
+  //     const userId = req.user._id;
+  //     const { paymentMethod } = req.body;
+
+  //     if (req.isReceptionAccess) {
+  //       console.log(`Order created by reception ${req.receptionUser._id} for user ${userId}`);
+  //     }
+  
+  //     // Validate payment method
+  //     const validPaymentMethods = ['UPI', 'netBanking', 'debitCard', 'COD'];
+  //     if (!validPaymentMethods.includes(paymentMethod)) {
+  //       return res.status(400).json({
+  //         error: 'Invalid payment method',
+  //         validMethods: validPaymentMethods
+  //       });
+  //     }
+  
+  //     // Validate user and check activity status
+  //     const user = await User.findById(userId);
+  //     if (!user?.customerDetails?.address) {
+  //       return res.status(400).json({
+  //         error: "No address found. Please update your profile with a valid address."
+  //       });
+  //     }
+  
+  //     // Check if user is currently inactive
+  //     if (!user.isActive) {
+  //       // Get user's activity history
+  //       const userActivity = await UserActivity.findOne({ user: userId });
+  //       if (userActivity) {
+  //         const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
+          
+  //         // If user has been inactive for more than 10 days
+  //         if (lastPeriod && lastPeriod.status === 'inactive') {
+  //           const inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
+            
+  //           if (inactiveDays >= 30) {
+  //             // Update user activity status
+  //             lastPeriod.endDate = new Date();
+  //             userActivity.activityPeriods.push({
+  //               startDate: new Date(),
+  //               status: 'active'
+  //             });
+  //             await userActivity.save();
+  
+  //             // Reactivate user
+  //             user.isActive = true;
+  //             await user.save();
+  
+  //             // Log the reactivation
+  //             console.log(`User ${userId} reactivated after ${inactiveDays} days of inactivity due to new order`);
+  //           }
+  //         }
+  //       }
+  //     }
+  
+  //     // Get cart with populated product details
+  //     const cart = await Cart.findOne({ user: userId }).populate("products.product");
+  //     if (!cart || !cart.products.length) {
+  //       return res.status(400).json({ error: "Cart is empty" });
+  //     }
+  
+  //     // Validate products and calculate total
+  //     const orderProducts = [];
+  //     let totalAmount = 0;
+  //     const productTypes = new Set();
+  
+  //     for (const item of cart.products) {
+  //       const product = await Product.findById(item.product._id);
+        
+  //       if (!product || !product.isActive) {
+  //         return res.status(400).json({ 
+  //           error: `Product not found or inactive: ${item.product.name}` 
+  //         });
+  //       }
+  
+  //       // if (product.quantity < item.quantity) {
+  //       //   return res.status(400).json({
+  //       //     error: `Not enough stock for ${product.name}`,
+  //       //     availableStock: product.quantity,
+  //       //     requestedQuantity: item.quantity
+  //       //   });
+  //       // }
+  
+  //       const price = product.discountedPrice || product.originalPrice;
+  //       totalAmount += price * item.quantity;
+        
+  //       orderProducts.push({
+  //         product: product._id,
+  //         quantity: item.quantity,
+  //         price: price
+  //       });
+  
+  //       productTypes.add(product.type);
+  //     }
+  
+  //     // Handle COD orders
+  //     if (paymentMethod === 'COD') {
+  //       const order = new Order({
+  //         user: userId,
+  //         products: orderProducts,
+  //         totalAmount,
+  //         totalAmountWithDelivery: totalAmount,
+  //         deliveryCharge: 0,
+  //         paymentMethod: 'COD',
+  //         type: [...productTypes][0],
+  //         shippingAddress: user.customerDetails.address,
+  //         firmName: user.customerDetails.firmName,
+  //         gstNumber: user.customerDetails.gstNumber,
+  //         paymentStatus: 'pending',
+  //         orderStatus: 'pending',
+  //         userStatus: user.isActive ? 'active' : 'inactive' // Add user status to order
+  //       });
+  
+  //       await order.save();
+  
+  //       // Update product quantities and clear cart
+  //       for (const item of orderProducts) {
+  //         await Product.findByIdAndUpdate(
+  //           item.product,
+  //           { $inc: { quantity: -item.quantity } }
+  //         );
+  //       }
+  //       await Cart.findByIdAndDelete(cart._id);
+  
+  //       return res.status(201).json({
+  //         success: true,
+  //         message: "COD order placed successfully",
+  //         order
+  //       });
+  //     }
+  
+  //     // Handle online payments
+  //     const receiptId = `rcpt_${Date.now().toString().slice(-8)}_${userId.toString().slice(-4)}`;
+      
+  //     const razorpayOrder = await razorpay.orders.create({
+  //       amount: Math.round(totalAmount * 100),
+  //       currency: 'INR',
+  //       receipt: receiptId,
+  //       payment_capture: 1,
+  //       notes: {
+  //         userId: userId.toString(),
+  //         cartId: cart._id.toString(),
+  //         paymentMethod,
+  //         productType: [...productTypes][0],
+  //         userStatus: user.isActive ? 'active' : 'inactive' // Add user status to payment notes
+  //       }
+  //     });
+  
+  //     res.status(200).json({
+  //       success: true,
+  //       orderId: razorpayOrder.id,
+  //       amount: totalAmount,
+  //       currency: 'INR',
+  //       keyId: process.env.RAZORPAY_KEY_ID,
+  //       cartDetails: {
+  //         items: cart.products.length,
+  //         total: totalAmount
+  //       },
+  //       userDetails: {
+  //         name: user.name,
+  //         email: user.email,
+  //         phone: user.phoneNumber,
+  //         status: user.isActive ? 'active' : 'inactive'
+  //       }
+  //     });
+  
+  //   } catch (error) {
+  //     console.error("Order creation error:", error);
+  //     res.status(500).json({
+  //       error: "Error creating order",
+  //       details: error.message
+  //     });
+  //   }
+  // },
+
+
+  createOrder: async (req, res) => {
     try {
       const userId = req.user._id;
       const { paymentMethod } = req.body;
-
+  
       if (req.isReceptionAccess) {
         console.log(`Order created by reception ${req.receptionUser._id} for user ${userId}`);
       }
@@ -322,29 +502,20 @@ const paymentController = {
   
       // Check if user is currently inactive
       if (!user.isActive) {
-        // Get user's activity history
         const userActivity = await UserActivity.findOne({ user: userId });
         if (userActivity) {
           const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
-          
-          // If user has been inactive for more than 10 days
           if (lastPeriod && lastPeriod.status === 'inactive') {
             const inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
-            
             if (inactiveDays >= 30) {
-              // Update user activity status
               lastPeriod.endDate = new Date();
               userActivity.activityPeriods.push({
                 startDate: new Date(),
                 status: 'active'
               });
               await userActivity.save();
-  
-              // Reactivate user
               user.isActive = true;
               await user.save();
-  
-              // Log the reactivation
               console.log(`User ${userId} reactivated after ${inactiveDays} days of inactivity due to new order`);
             }
           }
@@ -361,16 +532,25 @@ const paymentController = {
       const orderProducts = [];
       let totalAmount = 0;
       const productTypes = new Set();
+      const now = new Date();
   
       for (const item of cart.products) {
         const product = await Product.findById(item.product._id);
-        
         if (!product || !product.isActive) {
           return res.status(400).json({ 
             error: `Product not found or inactive: ${item.product.name}` 
           });
         }
   
+        // Determine price based on offer validity
+        const isOfferValid = product.discountedPrice && 
+                            product.validFrom && 
+                            product.validTo && 
+                            now >= product.validFrom && 
+                            now <= product.validTo;
+        const price = isOfferValid ? product.discountedPrice : product.originalPrice;
+  
+        // Uncomment and adjust stock check if needed
         // if (product.quantity < item.quantity) {
         //   return res.status(400).json({
         //     error: `Not enough stock for ${product.name}`,
@@ -379,15 +559,12 @@ const paymentController = {
         //   });
         // }
   
-        const price = product.discountedPrice || product.originalPrice;
         totalAmount += price * item.quantity;
-        
         orderProducts.push({
           product: product._id,
           quantity: item.quantity,
           price: price
         });
-  
         productTypes.add(product.type);
       }
   
@@ -406,12 +583,11 @@ const paymentController = {
           gstNumber: user.customerDetails.gstNumber,
           paymentStatus: 'pending',
           orderStatus: 'pending',
-          userStatus: user.isActive ? 'active' : 'inactive' // Add user status to order
+          userStatus: user.isActive ? 'active' : 'inactive'
         });
   
         await order.save();
   
-        // Update product quantities and clear cart
         for (const item of orderProducts) {
           await Product.findByIdAndUpdate(
             item.product,
@@ -429,7 +605,6 @@ const paymentController = {
   
       // Handle online payments
       const receiptId = `rcpt_${Date.now().toString().slice(-8)}_${userId.toString().slice(-4)}`;
-      
       const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(totalAmount * 100),
         currency: 'INR',
@@ -440,7 +615,7 @@ const paymentController = {
           cartId: cart._id.toString(),
           paymentMethod,
           productType: [...productTypes][0],
-          userStatus: user.isActive ? 'active' : 'inactive' // Add user status to payment notes
+          userStatus: user.isActive ? 'active' : 'inactive'
         }
       });
   
@@ -473,178 +648,342 @@ const paymentController = {
 
 
 
-  verifyPayment: async (req, res) => {
-    try {
-        const {
-            razorpay_order_id,
-            razorpay_payment_id,
-            // razorpay_signature
-        } = req.body;
+//   verifyPayment: async (req, res) => {
+//     try {
+//         const {
+//             razorpay_order_id,
+//             razorpay_payment_id,
+//             // razorpay_signature
+//         } = req.body;
 
-        // First verify the payment signature
-        // const sign = razorpay_order_id + '|' + razorpay_payment_id;
-        // const expectedSign = crypto
-        //     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        //     .update(sign)
-        //     // .update(sign.toString())
-        //     .digest('hex');
+//         // First verify the payment signature
+//         // const sign = razorpay_order_id + '|' + razorpay_payment_id;
+//         // const expectedSign = crypto
+//         //     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+//         //     .update(sign)
+//         //     // .update(sign.toString())
+//         //     .digest('hex');
 
-        // if (razorpay_signature !== expectedSign) {
-        //     return res.status(400).json({ 
-        //         error: 'Invalid payment signature',
-        //         success: false
-        //     });
-        // }
+//         // if (razorpay_signature !== expectedSign) {
+//         //     return res.status(400).json({ 
+//         //         error: 'Invalid payment signature',
+//         //         success: false
+//         //     });
+//         // }
 
-        // Fetch the payment details from Razorpay
-        const payment = await razorpay.payments.fetch(razorpay_payment_id);
+//         // Fetch the payment details from Razorpay
+//         const payment = await razorpay.payments.fetch(razorpay_payment_id);
         
-        // Fetch the order details from Razorpay
-        const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+//         // Fetch the order details from Razorpay
+//         const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
 
-        // Comprehensive payment verification
-        if (payment.status !== 'captured') {
-            return res.status(400).json({ 
-                error: 'Payment not captured',
-                details: 'Payment status is ' + payment.status,
-                success: false
-            });
-        }
+//         // Comprehensive payment verification
+//         if (payment.status !== 'captured') {
+//             return res.status(400).json({ 
+//                 error: 'Payment not captured',
+//                 details: 'Payment status is ' + payment.status,
+//                 success: false
+//             });
+//         }
 
-        if (payment.order_id !== razorpay_order_id) {
-            return res.status(400).json({ 
-                error: 'Order ID mismatch',
-                success: false
-            });
-        }
+//         if (payment.order_id !== razorpay_order_id) {
+//             return res.status(400).json({ 
+//                 error: 'Order ID mismatch',
+//                 success: false
+//             });
+//         }
 
-        // Verify payment amount matches order amount
-        if (payment.amount !== razorpayOrder.amount) {
-            return res.status(400).json({ 
-                error: 'Payment amount mismatch',
-                success: false
-            });
-        }
+//         // Verify payment amount matches order amount
+//         if (payment.amount !== razorpayOrder.amount) {
+//             return res.status(400).json({ 
+//                 error: 'Payment amount mismatch',
+//                 success: false
+//             });
+//         }
 
-        // Extract order details from Razorpay order notes
-        const { userId, cartId, paymentMethod, productType } = razorpayOrder.notes;
+//         // Extract order details from Razorpay order notes
+//         const { userId, cartId, paymentMethod, productType } = razorpayOrder.notes;
 
-        // Get user and check activity status
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                error: 'User not found',
-                success: false
-            });
-        }
+//         // Get user and check activity status
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({
+//                 error: 'User not found',
+//                 success: false
+//             });
+//         }
 
-        const userActivity = await UserActivity.findOne({ user: userId });
+//         const userActivity = await UserActivity.findOne({ user: userId });
         
-        let userActivityStatus = user.isActive ? 'active' : 'inactive';
-        let inactiveDays = 0;
-        let wasReactivated = false;
+//         let userActivityStatus = user.isActive ? 'active' : 'inactive';
+//         let inactiveDays = 0;
+//         let wasReactivated = false;
 
-        // Calculate inactive days if user is inactive
-        if (!user.isActive && userActivity) {
-            const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
-            if (lastPeriod && lastPeriod.status === 'inactive') {
-                inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
+//         // Calculate inactive days if user is inactive
+//         if (!user.isActive && userActivity) {
+//             const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
+//             if (lastPeriod && lastPeriod.status === 'inactive') {
+//                 inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
                 
-                // Check if user should be reactivated
-                if (inactiveDays >= 10) {
-                    // Update activity record
-                    lastPeriod.endDate = new Date();
-                    userActivity.activityPeriods.push({
-                        startDate: new Date(),
-                        status: 'active'
-                    });
-                    await userActivity.save();
+//                 // Check if user should be reactivated
+//                 if (inactiveDays >= 10) {
+//                     // Update activity record
+//                     lastPeriod.endDate = new Date();
+//                     userActivity.activityPeriods.push({
+//                         startDate: new Date(),
+//                         status: 'active'
+//                     });
+//                     await userActivity.save();
 
-                    // Reactivate user
-                    user.isActive = true;
-                    await user.save();
+//                     // Reactivate user
+//                     user.isActive = true;
+//                     await user.save();
                     
-                    userActivityStatus = 'active';
-                    wasReactivated = true;
-                }
-            }
-        }
+//                     userActivityStatus = 'active';
+//                     wasReactivated = true;
+//                 }
+//             }
+//         }
 
-        // Get cart and create order
-        const cart = await Cart.findById(cartId).populate('products.product');
-        if (!cart) {
-            return res.status(400).json({ 
-                error: 'Cart not found',
-                success: false
-            });
-        }
+//         // Get cart and create order
+//         const cart = await Cart.findById(cartId).populate('products.product');
+//         if (!cart) {
+//             return res.status(400).json({ 
+//                 error: 'Cart not found',
+//                 success: false
+//             });
+//         }
 
-        // Create order with activity status
-        const order = new Order({
-            user: userId,
-            products: cart.products.map(item => ({
-                product: item.product._id,
-                quantity: item.quantity,
-                price: item.product.discountedPrice || item.product.originalPrice
-            })),
-            totalAmount: razorpayOrder.amount / 100,
-            totalAmountWithDelivery: razorpayOrder.amount / 100,
-            paymentMethod,
-            type: productType,
-            shippingAddress: user.customerDetails.address,
-            firmName: user.customerDetails.firmName,
-            gstNumber: user.customerDetails.gstNumber,
-            paymentStatus: 'completed',
-            orderStatus: 'processing',
-            userActivityStatus,
-            inactiveDays,
-            reactivatedWithOrder: wasReactivated
-        });
+//         // Create order with activity status
+//         const order = new Order({
+//             user: userId,
+//             products: cart.products.map(item => ({
+//                 product: item.product._id,
+//                 quantity: item.quantity,
+//                 price: item.product.discountedPrice || item.product.originalPrice
+//             })),
+//             totalAmount: razorpayOrder.amount / 100,
+//             totalAmountWithDelivery: razorpayOrder.amount / 100,
+//             paymentMethod,
+//             type: productType,
+//             shippingAddress: user.customerDetails.address,
+//             firmName: user.customerDetails.firmName,
+//             gstNumber: user.customerDetails.gstNumber,
+//             paymentStatus: 'completed',
+//             orderStatus: 'processing',
+//             userActivityStatus,
+//             inactiveDays,
+//             reactivatedWithOrder: wasReactivated
+//         });
 
-        await order.save();
+//         await order.save();
 
-        // Create payment record with activity status
-        const paymentRecord = new Payment({
-            user: userId,
-            amount: razorpayOrder.amount / 100,
-            paymentIntentId: razorpay_payment_id,
-            status: 'completed',
-            userActivityStatus,
-            orderDetails: order._id
-        });
-        await paymentRecord.save();
+//         // Create payment record with activity status
+//         const paymentRecord = new Payment({
+//             user: userId,
+//             amount: razorpayOrder.amount / 100,
+//             paymentIntentId: razorpay_payment_id,
+//             status: 'completed',
+//             userActivityStatus,
+//             orderDetails: order._id
+//         });
+//         await paymentRecord.save();
 
-        // Update product quantities
-        for (const item of cart.products) {
-            await Product.findByIdAndUpdate(
-                item.product._id,
-                { $inc: { quantity: -item.quantity } }
-            );
-        }
+//         // Update product quantities
+//         for (const item of cart.products) {
+//             await Product.findByIdAndUpdate(
+//                 item.product._id,
+//                 { $inc: { quantity: -item.quantity } }
+//             );
+//         }
 
-        // Clear cart
-        await Cart.findByIdAndDelete(cartId);
+//         // Clear cart
+//         await Cart.findByIdAndDelete(cartId);
 
-        // Send success response
-        res.status(200).json({
-            success: true,
-            orderId: order._id,
-            message: 'Payment verified and order created successfully',
-            userStatus: {
-                currentStatus: userActivityStatus,
-                wasReactivated,
-                inactiveDays
-            }
-        });
+//         // Send success response
+//         res.status(200).json({
+//             success: true,
+//             orderId: order._id,
+//             message: 'Payment verified and order created successfully',
+//             userStatus: {
+//                 currentStatus: userActivityStatus,
+//                 wasReactivated,
+//                 inactiveDays
+//             }
+//         });
 
-    } catch (error) {
-        console.error('Payment Verification Error:', error);
-        res.status(500).json({ 
-            error: 'Error verifying payment',
-            details: error.message,
-            success: false
-        });
+//     } catch (error) {
+//         console.error('Payment Verification Error:', error);
+//         res.status(500).json({ 
+//             error: 'Error verifying payment',
+//             details: error.message,
+//             success: false
+//         });
+//     }
+// }
+
+verifyPayment: async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      // razorpay_signature
+    } = req.body;
+
+    // Fetch payment and order details from Razorpay
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+    const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+
+    if (payment.status !== 'captured') {
+      return res.status(400).json({ 
+        error: 'Payment not captured',
+        details: 'Payment status is ' + payment.status,
+        success: false
+      });
     }
+
+    if (payment.order_id !== razorpay_order_id) {
+      return res.status(400).json({ 
+        error: 'Order ID mismatch',
+        success: false
+      });
+    }
+
+    if (payment.amount !== razorpayOrder.amount) {
+      return res.status(400).json({ 
+        error: 'Payment amount mismatch',
+        success: false
+      });
+    }
+
+    // Extract order details from Razorpay order notes
+    const { userId, cartId, paymentMethod, productType } = razorpayOrder.notes;
+
+    // Get user and check activity status
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        success: false
+      });
+    }
+
+    const userActivity = await UserActivity.findOne({ user: userId });
+    let userActivityStatus = user.isActive ? 'active' : 'inactive';
+    let inactiveDays = 0;
+    let wasReactivated = false;
+
+    if (!user.isActive && userActivity) {
+      const lastPeriod = userActivity.activityPeriods[userActivity.activityPeriods.length - 1];
+      if (lastPeriod && lastPeriod.status === 'inactive') {
+        inactiveDays = Math.ceil((new Date() - lastPeriod.startDate) / (1000 * 60 * 60 * 24));
+        if (inactiveDays >= 10) {
+          lastPeriod.endDate = new Date();
+          userActivity.activityPeriods.push({
+            startDate: new Date(),
+            status: 'active'
+          });
+          await userActivity.save();
+          user.isActive = true;
+          await user.save();
+          userActivityStatus = 'active';
+          wasReactivated = true;
+        }
+      }
+    }
+
+    // Get cart and create order
+    const cart = await Cart.findById(cartId).populate('products.product');
+    if (!cart) {
+      return res.status(400).json({ 
+        error: 'Cart not found',
+        success: false
+      });
+    }
+
+    // Verify product prices with offer validity
+    const now = new Date();
+    const orderProducts = cart.products.map(item => {
+      const product = item.product;
+      const isOfferValid = product.discountedPrice && 
+                          product.validFrom && 
+                          product.validTo && 
+                          now >= product.validFrom && 
+                          now <= product.validTo;
+      const price = isOfferValid ? product.discountedPrice : product.originalPrice;
+      
+      return {
+        product: product._id,
+        quantity: item.quantity,
+        price: price
+      };
+    });
+
+    const totalAmount = orderProducts.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (Math.round(totalAmount * 100) !== razorpayOrder.amount) {
+      return res.status(400).json({
+        error: 'Calculated total amount does not match Razorpay order amount',
+        success: false
+      });
+    }
+
+    const order = new Order({
+      user: userId,
+      products: orderProducts,
+      totalAmount: razorpayOrder.amount / 100,
+      totalAmountWithDelivery: razorpayOrder.amount / 100,
+      paymentMethod,
+      type: productType,
+      shippingAddress: user.customerDetails.address,
+      firmName: user.customerDetails.firmName,
+      gstNumber: user.customerDetails.gstNumber,
+      paymentStatus: 'completed',
+      orderStatus: 'processing',
+      userActivityStatus,
+      inactiveDays,
+      reactivatedWithOrder: wasReactivated
+    });
+
+    await order.save();
+
+    const paymentRecord = new Payment({
+      user: userId,
+      amount: razorpayOrder.amount / 100,
+      paymentIntentId: razorpay_payment_id,
+      status: 'completed',
+      userActivityStatus,
+      orderDetails: order._id
+    });
+    await paymentRecord.save();
+
+    for (const item of cart.products) {
+      await Product.findByIdAndUpdate(
+        item.product._id,
+        { $inc: { quantity: -item.quantity } }
+      );
+    }
+
+    await Cart.findByIdAndDelete(cartId);
+
+    res.status(200).json({
+      success: true,
+      orderId: order._id,
+      message: 'Payment verified and order created successfully',
+      userStatus: {
+        currentStatus: userActivityStatus,
+        wasReactivated,
+        inactiveDays
+      }
+    });
+
+  } catch (error) {
+    console.error('Payment Verification Error:', error);
+    res.status(500).json({ 
+      error: 'Error verifying payment',
+      details: error.message,
+      success: false
+    });
+  }
 }
 };
 
