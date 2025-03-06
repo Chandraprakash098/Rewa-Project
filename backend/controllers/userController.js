@@ -14,75 +14,133 @@ const razorpay = new Razorpay({
 const userController = {
 
 
-  getAllProducts: async (req, res) => {
-    try {
-        const { type, category } = req.query;
-        let query = { isActive: true };
+//   getAllProducts: async (req, res) => {
+//     try {
+//         const { type, category } = req.query;
+//         let query = { isActive: true };
 
-        if (type) {
-            query.type = type;
+//         if (type) {
+//             query.type = type;
 
-            if (category) {
-                const validCategories = Product.getCategoriesByType(type);
-                if (!validCategories.includes(category)) {
-                    return res.status(400).json({ 
-                        error: "Invalid category for the selected type" 
-                    });
-                }
-                query.category = category;
-            }
+//             if (category) {
+//                 const validCategories = Product.getCategoriesByType(type);
+//                 if (!validCategories.includes(category)) {
+//                     return res.status(400).json({ 
+//                         error: "Invalid category for the selected type" 
+//                     });
+//                 }
+//                 query.category = category;
+//             }
+//         }
+
+//         // For users, exclude stockRemarks and only select necessary fields
+//         const products = await Product.find(query)
+//             .select('-stockRemarks')
+//             .lean();
+
+//         // Format the response for users (only basic product information)
+//         const formattedProducts = products.map(product => {
+//             const { 
+//                 _id, 
+//                 name, 
+//                 type, 
+//                 category, 
+//                 description, 
+//                 originalPrice, 
+//                 discountedPrice,
+//                 quantity,
+//                 image,
+//                 validFrom,
+//                 validTo,
+//                 isActive,
+//                 createdAt
+//             } = product;
+
+//             return {
+//                 _id,
+//                 name,
+//                 type,
+//                 category,
+//                 description,
+//                 originalPrice,
+//                 discountedPrice,
+//                 quantity,
+//                 image,
+//                 validFrom,
+//                 validTo,
+//                 isActive,
+//                 createdAt,
+//                 // Include virtual fields if needed
+//                 price: product.price,
+//                 discountTag: product.discountTag,
+//                 offerEndsIn: product.offerEndsIn,
+//                 isOffer: product.isOffer
+//             };
+//         });
+
+//         res.json({ products: formattedProducts });
+//     } catch (error) {
+//         console.error('Error in user getAllProducts:', error);
+//         res.status(500).json({ error: "Error fetching products" });
+//     }
+// },
+
+getAllProducts: async (req, res) => {
+  try {
+    const { type, category } = req.query;
+    let query = { isActive: true };
+
+    if (type) {
+      query.type = type;
+      if (category) {
+        const validCategories = Product.getCategoriesByType(type);
+        if (!validCategories.includes(category)) {
+          return res.status(400).json({ error: "Invalid category for the selected type" });
         }
-
-        // For users, exclude stockRemarks and only select necessary fields
-        const products = await Product.find(query)
-            .select('-stockRemarks')
-            .lean();
-
-        // Format the response for users (only basic product information)
-        const formattedProducts = products.map(product => {
-            const { 
-                _id, 
-                name, 
-                type, 
-                category, 
-                description, 
-                originalPrice, 
-                discountedPrice,
-                quantity,
-                image,
-                validFrom,
-                validTo,
-                isActive,
-                createdAt
-            } = product;
-
-            return {
-                _id,
-                name,
-                type,
-                category,
-                description,
-                originalPrice,
-                discountedPrice,
-                quantity,
-                image,
-                validFrom,
-                validTo,
-                isActive,
-                createdAt,
-                // Include virtual fields if needed
-                price: product.price,
-                discountTag: product.discountTag,
-                offerEndsIn: product.offerEndsIn,
-                isOffer: product.isOffer
-            };
-        });
-
-        res.json({ products: formattedProducts });
-    } catch (error) {
-        console.error('Error in user getAllProducts:', error);
-        res.status(500).json({ error: "Error fetching products" });
+        query.category = category;
+      }
     }
+
+    const products = await Product.find(query)
+      .select('-stockRemarks')
+      .lean();
+
+    const formattedProducts = products.map(product => {
+      const now = new Date();
+      const isOfferValid = product.discountedPrice && 
+                          product.validFrom && 
+                          product.validTo && 
+                          now >= product.validFrom && 
+                          now <= product.validTo;
+
+      return {
+        _id: product._id,
+        name: product.name,
+        type: product.type,
+        category: product.category,
+        description: product.description,
+        originalPrice: product.originalPrice,
+        price: isOfferValid ? product.discountedPrice : product.originalPrice,
+        quantity: product.quantity,
+        image: product.image,
+        validFrom: product.validFrom,
+        validTo: product.validTo,
+        isActive: product.isActive,
+        createdAt: product.createdAt,
+        ...(isOfferValid && {
+          discountedPrice: product.discountedPrice,
+          discountTag: `${Math.round(((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100)}% OFF`,
+          offerEndsIn: product.validTo,
+          isOffer: true
+        })
+      };
+    });
+
+    res.json({ products: formattedProducts });
+  } catch (error) {
+    console.error('Error in user getAllProducts:', error);
+    res.status(500).json({ error: "Error fetching products" });
+  }
 },
 
   getOffers: async (req, res) => {

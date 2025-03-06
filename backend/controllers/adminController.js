@@ -354,56 +354,117 @@ const adminController = {
   //     }
   //   },
 
-  getAllProducts: async (req, res) => {
-    try {
-        const { type, category } = req.query;
-        let query = { isActive: true };
+//   getAllProducts: async (req, res) => {
+//     try {
+//         const { type, category } = req.query;
+//         let query = { isActive: true };
         
-        if (type) {
-            query.type = type;
+//         if (type) {
+//             query.type = type;
             
-            if (category) {
-                const validCategories = Product.getCategoriesByType(type);
-                if (!validCategories.includes(category)) {
-                    return res.status(400).json({ error: 'Invalid category for the selected type' });
-                }
-                query.category = category;
-            }
+//             if (category) {
+//                 const validCategories = Product.getCategoriesByType(type);
+//                 if (!validCategories.includes(category)) {
+//                     return res.status(400).json({ error: 'Invalid category for the selected type' });
+//                 }
+//                 query.category = category;
+//             }
+//         }
+        
+//         const products = await Product.find(query)
+//             .populate({
+//                 path: 'stockRemarks.updatedBy',
+//                 select: 'name'
+//             })
+//             .sort({ 'stockRemarks.updatedAt': -1 });
+
+//         // Format the response with stock information for admin
+//         const formattedProducts = products.map(product => {
+//             const productObj = product.toObject({ virtuals: true });
+            
+//             // Add stock update information if available
+//             if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
+//                 productObj.stockUpdateInfo = {
+//                     lastUpdate: {
+//                         message: productObj.stockRemarks[0].message,
+//                         updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
+//                         updatedAt: productObj.stockRemarks[0].updatedAt,
+//                         quantity: productObj.stockRemarks[0].quantity,
+//                         changeType: productObj.stockRemarks[0].changeType
+//                     },
+//                     totalUpdates: productObj.stockRemarks.length
+//                 };
+//             }
+            
+//             return productObj;
+//         });
+
+//         res.json({ products: formattedProducts });
+//     } catch (error) {
+//         console.error('Error in admin getAllProducts:', error);
+//         res.status(500).json({ error: 'Error fetching products' });
+//     }
+// },
+
+getAllProducts: async (req, res) => {
+  try {
+    const { type, category } = req.query;
+    let query = { isActive: true };
+    
+    if (type) {
+      query.type = type;
+      if (category) {
+        const validCategories = Product.getCategoriesByType(type);
+        if (!validCategories.includes(category)) {
+          return res.status(400).json({ error: 'Invalid category for the selected type' });
         }
-        
-        const products = await Product.find(query)
-            .populate({
-                path: 'stockRemarks.updatedBy',
-                select: 'name'
-            })
-            .sort({ 'stockRemarks.updatedAt': -1 });
-
-        // Format the response with stock information for admin
-        const formattedProducts = products.map(product => {
-            const productObj = product.toObject({ virtuals: true });
-            
-            // Add stock update information if available
-            if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
-                productObj.stockUpdateInfo = {
-                    lastUpdate: {
-                        message: productObj.stockRemarks[0].message,
-                        updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
-                        updatedAt: productObj.stockRemarks[0].updatedAt,
-                        quantity: productObj.stockRemarks[0].quantity,
-                        changeType: productObj.stockRemarks[0].changeType
-                    },
-                    totalUpdates: productObj.stockRemarks.length
-                };
-            }
-            
-            return productObj;
-        });
-
-        res.json({ products: formattedProducts });
-    } catch (error) {
-        console.error('Error in admin getAllProducts:', error);
-        res.status(500).json({ error: 'Error fetching products' });
+        query.category = category;
+      }
     }
+    
+    const products = await Product.find(query)
+      .populate({
+        path: 'stockRemarks.updatedBy',
+        select: 'name'
+      })
+      .sort({ 'stockRemarks.updatedAt': -1 });
+
+    const formattedProducts = products.map(product => {
+      const productObj = product.toObject({ virtuals: true });
+      const now = new Date();
+      const isOfferValid = productObj.discountedPrice && 
+                          productObj.validFrom && 
+                          productObj.validTo && 
+                          now >= productObj.validFrom && 
+                          now <= productObj.validTo;
+
+      if (!isOfferValid) {
+        delete productObj.discountedPrice;
+        delete productObj.discountTag;
+        delete productObj.offerEndsIn;
+      }
+
+      if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
+        productObj.stockUpdateInfo = {
+          lastUpdate: {
+            message: productObj.stockRemarks[0].message,
+            updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
+            updatedAt: productObj.stockRemarks[0].updatedAt,
+            quantity: productObj.stockRemarks[0].quantity,
+            changeType: productObj.stockRemarks[0].changeType
+          },
+          totalUpdates: productObj.stockRemarks.length
+        };
+      }
+      
+      return productObj;
+    });
+
+    res.json({ products: formattedProducts });
+  } catch (error) {
+    console.error('Error in admin getAllProducts:', error);
+    res.status(500).json({ error: 'Error fetching products' });
+  }
 },
 
   deleteProduct :async (req, res) => {
