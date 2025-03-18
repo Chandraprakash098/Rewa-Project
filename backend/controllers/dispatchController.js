@@ -44,31 +44,6 @@ exports.getCurrentOrders = async (req, res) => {
 
 
 
-// exports.updateOrderStatus= async (req, res) => {
-//   try {
-//     const { orderId } = req.params;
-//     const { status } = req.body;
-    
-//     const validStatuses = ['confirmed', 'shipped', 'delivered', 'cancelled'];
-//     if (!validStatuses.includes(status)) {
-//       return res.status(400).json({ error: 'Invalid status for dispatch' });
-//     }
-
-//     const order = await Order.findById(orderId);
-//     // if (!order || order.orderStatus !== 'processing') {
-//     //   return res.status(400).json({ error: 'Can only update processing orders' });
-//     // }
-
-//     order._updatedBy = req.user._id;
-//     order.orderStatus = status;
-//     await order.save();
-
-//     res.json({ message: 'Order status updated successfully', order });
-//   } catch (error) {
-//     res.status(500).json({ error: 'Error updating order status' });
-//   }
-// };
-
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
