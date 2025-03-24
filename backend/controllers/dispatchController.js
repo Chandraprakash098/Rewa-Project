@@ -74,16 +74,39 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-exports.getProcessingOrders= async (req, res) => {
+// exports.getProcessingOrders= async (req, res) => {
+//   try {
+//     const orders = await Order.find({
+//       orderStatus: { $in: ['processing', 'confirmed'] } 
+//     })
+//     .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+//     .populate('products.product')
+//     .sort({ createdAt: -1 });
+
+//     res.json({ orders });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Error fetching processing orders' });
+//   }
+// };
+
+exports.getProcessingOrders = async (req, res) => {
   try {
     const orders = await Order.find({
-      orderStatus: { $in: ['processing', 'confirmed', 'shipped'] } 
+      orderStatus: { $in: ['processing', 'confirmed'] }
     })
     .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
     .populate('products.product')
     .sort({ createdAt: -1 });
 
-    res.json({ orders });
+    // Format the response to ensure numeric values
+    const formattedOrders = orders.map(order => ({
+      ...order.toObject(),
+      totalAmount: Number(order.totalAmount),
+      deliveryCharge: Number(order.deliveryCharge || 0),
+      totalAmountWithDelivery: Number(order.totalAmountWithDelivery)
+    }));
+
+    res.json({ orders: formattedOrders });
   } catch (error) {
     res.status(500).json({ error: 'Error fetching processing orders' });
   }

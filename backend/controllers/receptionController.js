@@ -437,7 +437,9 @@ createOrderAsReception : async (req, res) => {
               new Date() >= product.validFrom &&
               new Date() <= product.validTo;
 
-          const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+          // const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+          const price = Number(isValidOffer ? product.discountedPrice : product.originalPrice);
+          const quantity = Number(item.quantity);
           totalAmount += price * item.quantity;
 
           orderProducts.push({
@@ -825,6 +827,50 @@ getAttendance: async (req, res) => {
   }
 },
 
+// addDeliveryCharge: async (req, res) => {
+//   try {
+//     const { orderId, deliveryCharge } = req.body;
+
+//     // Validate input
+//     if (!orderId || deliveryCharge === undefined || deliveryCharge < 0) {
+//       return res.status(400).json({ 
+//         error: 'Invalid order ID or delivery charge' 
+//       });
+//     }
+
+//     // Find the order
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({ error: 'Order not found' });
+//     }
+
+//     // Check order status
+//     if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
+//       return res.status(400).json({ 
+//         error: 'Can only add delivery charge to pending or preview orders' 
+//       });
+//     }
+
+//     // Update order with delivery charge
+//     order.deliveryCharge = deliveryCharge;
+//     order.totalAmountWithDelivery = order.totalAmount + deliveryCharge;
+//     order.deliveryChargeAddedBy = req.user._id;
+//     order.orderStatus = 'processing'; // Move to processing after adding delivery charge
+
+//     await order.save();
+
+//     res.json({ 
+//       message: 'Delivery charge added successfully', 
+//       order 
+//     });
+//   } catch (error) {
+//     res.status(500).json({ 
+//       error: 'Error adding delivery charge', 
+//       details: error.message 
+//     });
+//   }
+// },
+
 addDeliveryCharge: async (req, res) => {
   try {
     const { orderId, deliveryCharge } = req.body;
@@ -833,6 +879,14 @@ addDeliveryCharge: async (req, res) => {
     if (!orderId || deliveryCharge === undefined || deliveryCharge < 0) {
       return res.status(400).json({ 
         error: 'Invalid order ID or delivery charge' 
+      });
+    }
+
+    // Convert deliveryCharge to number explicitly
+    const numericDeliveryCharge = Number(deliveryCharge);
+    if (isNaN(numericDeliveryCharge)) {
+      return res.status(400).json({ 
+        error: 'Delivery charge must be a valid number' 
       });
     }
 
@@ -849,11 +903,12 @@ addDeliveryCharge: async (req, res) => {
       });
     }
 
-    // Update order with delivery charge
-    order.deliveryCharge = deliveryCharge;
-    order.totalAmountWithDelivery = order.totalAmount + deliveryCharge;
+    // Ensure totalAmount is a number and update with delivery charge
+    const baseAmount = Number(order.totalAmount) || 0;
+    order.deliveryCharge = numericDeliveryCharge;
+    order.totalAmountWithDelivery = baseAmount + numericDeliveryCharge;
     order.deliveryChargeAddedBy = req.user._id;
-    order.orderStatus = 'processing'; // Move to processing after adding delivery charge
+    order.orderStatus = 'processing';
 
     await order.save();
 
@@ -862,6 +917,7 @@ addDeliveryCharge: async (req, res) => {
       order 
     });
   } catch (error) {
+    console.error('Error adding delivery charge:', error);
     res.status(500).json({ 
       error: 'Error adding delivery charge', 
       details: error.message 
