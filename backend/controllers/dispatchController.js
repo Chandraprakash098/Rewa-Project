@@ -67,7 +67,9 @@ exports.updateOrderStatus = async (req, res) => {
     if (status === 'shipped' && order.paymentMethod === 'COD') {
       order.paymentStatus = 'pending'; // Keep payment status pending for COD until explicitly updated
     }
-
+   
+    await order.save();
+    
     res.json({ message: 'Order status updated successfully', order });
   } catch (error) {
     res.status(500).json({ error: 'Error updating order status' });
