@@ -36,14 +36,7 @@ const cartController = {
         return res.status(404).json({ error: 'Product not found or inactive' });
       }
   
-      // Check stock availability (uncomment if needed)
-      // if (product.quantity < quantity) {
-      //   return res.status(400).json({ 
-      //     error: `Not enough stock available for ${product.name}`,
-      //     availableStock: product.quantity,
-      //     requestedQuantity: quantity
-      //   });
-      // }
+      
   
       // Check offer status
       const now = new Date();
@@ -107,6 +100,7 @@ const cartController = {
                 _id: product._id,
                 name: product.name,
                 price: price,
+                category: product.category,
                 ...(isOfferValid && {
                   discountedPrice: product.discountedPrice,
                   discountPercentage: Math.round(((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100),
@@ -173,6 +167,7 @@ const cartController = {
                 _id: product._id,
                 name: product.name,
                 price: price,
+                category: product.category,
                 ...(isOfferValid && {
                   discountedPrice: product.discountedPrice,
                   discountPercentage: Math.round(
@@ -252,6 +247,7 @@ const cartController = {
               _id: product._id,
               name: product.name,
               price: price,
+              category: product.category,
               ...(isOfferValid && {
                 discountedPrice: product.discountedPrice,
                 discountPercentage: Math.round(((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100),
