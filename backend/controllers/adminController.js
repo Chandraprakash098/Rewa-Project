@@ -435,6 +435,7 @@ downloadFullStockHistory: async (req, res) => {
 
     // Define column headers
     worksheet.columns = [
+      { header: 'Product ID', key: 'productId', width: 25 },
       { header: 'Product Name', key: 'productName', width: 20 },
       { header: 'Description', key: 'productDescription', width: 30 },
       { header: 'Current Quantity', key: 'currentQuantity', width: 15 },
@@ -460,7 +461,7 @@ downloadFullStockHistory: async (req, res) => {
     stockHistory.forEach(stock => {
       stock.updateHistory.forEach(update => {
         worksheet.addRow({
-          // productId: stock.productId._id.toString(),
+          productId: stock.productId._id.toString(),
           productName: stock.productId.name,
           productDescription: stock.productId.description,
           // productImage: stock.productId.image || 'N/A',
