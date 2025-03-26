@@ -76,20 +76,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-// exports.getProcessingOrders= async (req, res) => {
-//   try {
-//     const orders = await Order.find({
-//       orderStatus: { $in: ['processing', 'confirmed'] } 
-//     })
-//     .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
-//     .populate('products.product')
-//     .sort({ createdAt: -1 });
 
-//     res.json({ orders });
-//   } catch (error) {
-//     res.status(500).json({ error: 'Error fetching processing orders' });
-//   }
-// };
 
 exports.getProcessingOrders = async (req, res) => {
   try {
