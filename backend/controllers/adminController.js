@@ -404,6 +404,97 @@ const adminController = {
     }
   },
 
+downloadFullStockHistory: async (req, res) => {
+  try {
+    const { startDate, endDate, productId } = req.query;
+    
+    let query = {};
+    
+    // Add date range filter if provided
+    if (startDate && endDate) {
+      query['updateHistory.updatedAt'] = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Add product filter if provided
+    if (productId) {
+      query.productId = productId;
+    }
+
+    const stockHistory = await Stock.find(query)
+      .populate('productId', 'name description ')
+      .populate('updatedBy', 'name email')
+      .populate('updateHistory.updatedBy', 'name email')
+      .sort({ 'updateHistory.updatedAt': -1 });
+
+    // Create a new Excel workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Stock History');
+
+    // Define column headers
+    worksheet.columns = [
+      { header: 'Product Name', key: 'productName', width: 20 },
+      { header: 'Description', key: 'productDescription', width: 30 },
+      { header: 'Current Quantity', key: 'currentQuantity', width: 15 },
+      { header: 'Last Updated', key: 'lastUpdated', width: 20 },
+      { header: 'Last Updated By', key: 'lastUpdatedBy', width: 20 },
+      { header: 'Update Date', key: 'updateDate', width: 20 },
+      { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
+      { header: 'Change Type', key: 'changeType', width: 15 },
+      { header: 'Updated By', key: 'updatedBy', width: 20 },
+      { header: 'Notes', key: 'notes', width: 30 }
+    ];
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDDDDDD' }
+    };
+
+    // Add data to the worksheet
+    stockHistory.forEach(stock => {
+      stock.updateHistory.forEach(update => {
+        worksheet.addRow({
+          // productId: stock.productId._id.toString(),
+          productName: stock.productId.name,
+          productDescription: stock.productId.description,
+          // productImage: stock.productId.image || 'N/A',
+          currentQuantity: stock.quantity,
+          lastUpdated: stock.lastUpdated.toLocaleString(),
+          lastUpdatedBy: stock.updatedBy?.name || 'N/A',
+          updateDate: update.updatedAt.toLocaleString(),
+          updateQuantity: update.quantity,
+          changeType: update.changeType,
+          updatedBy: update.updatedBy?.name || 'N/A',
+          notes: update.notes || 'N/A'
+        });
+      });
+    });
+
+    // Set response headers for file download
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="Full_Stock_History.xlsx"'
+    );
+
+    // Write the workbook to the response stream
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error generating stock history Excel:', error);
+    res.status(500).json({ error: 'Error generating stock history Excel file' });
+  }
+},
+
 getAllProducts: async (req, res) => {
   try {
     const { type, category } = req.query;

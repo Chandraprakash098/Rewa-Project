@@ -50,5 +50,6 @@ router.get('/profile', adminController.getAdminProfile);
 //new Routes to show stock history
 
 router.get('/stock/full-history', adminController.getFullStockHistory);
+router.get('/stock/full-history/download', adminController.downloadFullStockHistory);
 
 module.exports = router;
