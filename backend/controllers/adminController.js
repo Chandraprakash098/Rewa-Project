@@ -7,6 +7,7 @@ const MarketingActivity = require('../models/MarketingActivity');
 const Attendance = require('../models/Attendance')
 const UserActivity = require('../models/UserActivity')
 const ExcelJS = require('exceljs');
+const Stock = require('../models/Stock')
 // const passwordCache = new Map();
 
 const adminController = {
