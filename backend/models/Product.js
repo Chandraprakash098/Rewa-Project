@@ -98,7 +98,7 @@ productSchema.virtual('isOffer').get(function() {
 
 productSchema.statics.getCategoriesByType = function(type) {
   if (type === 'Bottle') {
-    return ['200ml','250ml','500ml', '1L', '2L', '5L'];
+    return ['200ml','250ml','500ml','700ml', '1L', '2L', '5L'];
   } else if (type === 'Raw Material') {
     return ['25 mm Plastic ROPP Cap','Narrow Neck Cap','Pet Preforms','26/22 Shortneck caps','27mm Alaska caps'];
   }
