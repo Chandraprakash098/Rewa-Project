@@ -329,144 +329,79 @@ const adminController = {
     }
   },
 
+  //to see Stock History
 
-  // getAllProducts : async (req, res) => {
-  //     try {
-  //       const { type, category } = req.query;
-  //       let query = { isActive: true };
-        
-  //       if (type) {
-  //         query.type = type;
-          
-  //         if (category) {
-  //           const validCategories = Product.getCategoriesByType(type);
-  //           if (!validCategories.includes(category)) {
-  //             return res.status(400).json({ error: 'Invalid category for the selected type' });
-  //           }
-  //           query.category = category;
-  //         }
-  //       }
-        
-  //       const products = await Product.find(query);
-  //       res.json({ products });
-  //     } catch (error) {
-  //       res.status(500).json({ error: 'Error fetching products' });
-  //     }
-  //   },
-
-//   getAllProducts: async (req, res) => {
-//     try {
-//         const { type, category } = req.query;
-//         let query = { isActive: true };
-        
-//         if (type) {
-//             query.type = type;
-            
-//             if (category) {
-//                 const validCategories = Product.getCategoriesByType(type);
-//                 if (!validCategories.includes(category)) {
-//                     return res.status(400).json({ error: 'Invalid category for the selected type' });
-//                 }
-//                 query.category = category;
-//             }
-//         }
-        
-//         const products = await Product.find(query)
-//             .populate({
-//                 path: 'stockRemarks.updatedBy',
-//                 select: 'name'
-//             })
-//             .sort({ 'stockRemarks.updatedAt': -1 });
-
-//         // Format the response with stock information for admin
-//         const formattedProducts = products.map(product => {
-//             const productObj = product.toObject({ virtuals: true });
-            
-//             // Add stock update information if available
-//             if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
-//                 productObj.stockUpdateInfo = {
-//                     lastUpdate: {
-//                         message: productObj.stockRemarks[0].message,
-//                         updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
-//                         updatedAt: productObj.stockRemarks[0].updatedAt,
-//                         quantity: productObj.stockRemarks[0].quantity,
-//                         changeType: productObj.stockRemarks[0].changeType
-//                     },
-//                     totalUpdates: productObj.stockRemarks.length
-//                 };
-//             }
-            
-//             return productObj;
-//         });
-
-//         res.json({ products: formattedProducts });
-//     } catch (error) {
-//         console.error('Error in admin getAllProducts:', error);
-//         res.status(500).json({ error: 'Error fetching products' });
-//     }
-// },
-
-// getAllProducts: async (req, res) => {
-//   try {
-//     const { type, category } = req.query;
-//     let query = { isActive: true };
-    
-//     if (type) {
-//       query.type = type;
-//       if (category) {
-//         const validCategories = Product.getCategoriesByType(type);
-//         if (!validCategories.includes(category)) {
-//           return res.status(400).json({ error: 'Invalid category for the selected type' });
-//         }
-//         query.category = category;
-//       }
-//     }
-    
-//     const products = await Product.find(query)
-//       .populate({
-//         path: 'stockRemarks.updatedBy',
-//         select: 'name'
-//       })
-//       .sort({ 'stockRemarks.updatedAt': -1 });
-
-//     const formattedProducts = products.map(product => {
-//       const productObj = product.toObject({ virtuals: true });
-//       const now = new Date();
-//       const isOfferValid = productObj.discountedPrice && 
-//                           productObj.validFrom && 
-//                           productObj.validTo && 
-//                           now >= productObj.validFrom && 
-//                           now <= productObj.validTo;
-
-//       if (!isOfferValid) {
-//         delete productObj.discountedPrice;
-//         delete productObj.discountTag;
-//         delete productObj.offerEndsIn;
-//       }
-
-//       if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
-//         productObj.stockUpdateInfo = {
-//           lastUpdate: {
-//             message: productObj.stockRemarks[0].message,
-//             updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
-//             updatedAt: productObj.stockRemarks[0].updatedAt,
-//             quantity: productObj.stockRemarks[0].quantity,
-//             changeType: productObj.stockRemarks[0].changeType
-//           },
-//           totalUpdates: productObj.stockRemarks.length
-//         };
-//       }
+  getFullStockHistory: async (req, res) => {
+    try {
+      const { startDate, endDate, productId } = req.query;
       
-//       return productObj;
-//     });
-
-//     res.json({ products: formattedProducts });
-//   } catch (error) {
-//     console.error('Error in admin getAllProducts:', error);
-//     res.status(500).json({ error: 'Error fetching products' });
-//   }
-// },
-
+      let query = {};
+      
+      // Add date range filter if provided
+      if (startDate && endDate) {
+        query['updateHistory.updatedAt'] = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
+      }
+  
+      // Add product filter if provided
+      if (productId) {
+        query.productId = productId;
+      }
+  
+      const stockHistory = await Stock.find(query)
+        .populate('productId', 'name description')
+        .populate('updatedBy', 'name email')
+        .populate('updateHistory.updatedBy', 'name email')
+        .sort({ 'updateHistory.updatedAt': -1 });
+  
+      // Format the response for better readability
+      const formattedHistory = stockHistory.map(stock => ({
+        productId: stock.productId._id,
+        productName: stock.productId.name,
+        productDescription: stock.productId.description,
+        currentQuantity: stock.quantity,
+        lastUpdated: stock.lastUpdated,
+        lastUpdatedBy: {
+          id: stock.updatedBy?._id,
+          name: stock.updatedBy?.name,
+          email: stock.updatedBy?.email
+        },
+        updateHistory: stock.updateHistory.map(update => ({
+          quantity: update.quantity,
+          updatedAt: update.updatedAt,
+          updatedBy: {
+            id: update.updatedBy?._id,
+            name: update.updatedBy?.name,
+            email: update.updatedBy?.email
+          },
+          changeType: update.changeType,
+          notes: update.notes
+        }))
+      }));
+  
+      // Calculate summary statistics
+      const summary = {
+        totalRecords: stockHistory.length,
+        totalUpdates: stockHistory.reduce((sum, stock) => sum + stock.updateHistory.length, 0),
+        productsTracked: new Set(stockHistory.map(stock => stock.productId.toString())).size
+      };
+  
+      res.json({
+        success: true,
+        history: formattedHistory,
+        summary
+      });
+    } catch (error) {
+      console.error('Error fetching full stock history:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error fetching stock history',
+        details: error.message
+      });
+    }
+  },
 
 getAllProducts: async (req, res) => {
   try {
@@ -906,50 +841,6 @@ checkUserStatus : async (req, res, next) => {
     res.status(500).json({ error: 'Error checking user status' });
   }
 },
-
-
-
-
-
-//For Marketing
-
-// getAllMarketingActivities: async (req, res) => {
-//   try {
-//     const activities = await MarketingActivity.find({})
-//       .populate('marketingUser', 'name email customerDetails.firmName')
-//       .sort({ createdAt: -1 });
-
-//     res.json({ activities });
-//   } catch (error) {
-//     console.error('Error fetching marketing activities:', error);
-//     res.status(500).json({ error: 'Error fetching marketing activities' });
-//   }
-// },
-
-// // Review marketing activity
-// reviewMarketingActivity: async (req, res) => {
-//   try {
-//     const activity = await MarketingActivity.findById(req.params.activityId);
-    
-//     if (!activity) {
-//       return res.status(404).json({ error: 'Activity not found' });
-//     }
-
-//     activity.status = 'reviewed';
-//     activity.reviewedAt = new Date();
-//     activity.reviewedBy = req.user._id;
-    
-//     await activity.save();
-
-//     res.json({ 
-//       message: 'Marketing activity reviewed successfully',
-//       activity 
-//     });
-//   } catch (error) {
-//     console.error('Error reviewing marketing activity:', error);
-//     res.status(500).json({ error: 'Error reviewing marketing activity' });
-//   }
-// },
 
 
 getAllMarketingActivities: async (req, res) => {

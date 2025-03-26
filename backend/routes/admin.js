@@ -47,4 +47,8 @@ router.get('/check-in-images', adminController.getCheckInImages);
 
 router.get('/profile', adminController.getAdminProfile);
 
+//new Routes to show stock history
+
+router.get('/stock/full-history', adminController.getFullStockHistory);
+
 module.exports = router;

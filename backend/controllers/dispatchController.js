@@ -76,8 +76,6 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-
-
 exports.getProcessingOrders = async (req, res) => {
   try {
     const orders = await Order.find({
@@ -100,10 +98,6 @@ exports.getProcessingOrders = async (req, res) => {
     res.status(500).json({ error: 'Error fetching processing orders' });
   }
 };
-
-
-
-
 
 
 exports.downloadChallan = async (req, res) => {
