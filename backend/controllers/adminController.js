@@ -631,8 +631,8 @@ downloadFullStockHistory: async (req, res) => {
       { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
       { header: 'Change Type', key: 'changeType', width: 15 },
       { header: 'Updated By', key: 'updatedBy', width: 20 },
-      { header: 'Stock Addition', key: 'stockAddition', width: 15 },  // New column for stock additions
-      { header: 'Total Added by Stock', key: 'totalAddedByStock', width: 20 },  // New column for total
+      { header: 'Stock Addition', key: 'stockAddition', width: 15 },
+      { header: 'Total Added by Stock', key: 'totalAddedByStock', width: 20 },
       { header: 'Notes', key: 'notes', width: 30 }
     ];
 
@@ -647,7 +647,7 @@ downloadFullStockHistory: async (req, res) => {
 
     // Add data to the worksheet
     stockHistory.forEach(stock => {
-      // Calculate total added by stock for this product
+      // Calculate total added by stock for this product once
       const totalAddedByStock = stock.updateHistory
         .filter(update => 
           update.updatedBy?.role === 'stock' && 
@@ -656,6 +656,7 @@ downloadFullStockHistory: async (req, res) => {
         )
         .reduce((sum, update) => sum + (update.quantity || 0), 0);
 
+      // Add each update history row with the same totalAddedByStock
       stock.updateHistory.forEach(update => {
         const isStockAddition = update.updatedBy?.role === 'stock' && 
                               update.changeType === 'addition' && 
@@ -673,11 +674,37 @@ downloadFullStockHistory: async (req, res) => {
           changeType: update.changeType,
           updatedBy: update.updatedBy?.name || 'N/A',
           stockAddition: isStockAddition ? update.quantity : '',  // Show only positive stock additions
-          totalAddedByStock: totalAddedByStock,  // Show total for each row of this product
+          totalAddedByStock: totalAddedByStock || 0,  // Show total for every row of this product
           notes: update.notes || 'N/A'
         });
       });
     });
+
+    // Add a summary row at the bottom
+    const totalStockAddedAcrossAll = stockHistory.reduce((sum, stock) => {
+      const stockTotal = stock.updateHistory
+        .filter(update => 
+          update.updatedBy?.role === 'stock' && 
+          update.changeType === 'addition' && 
+          update.quantity > 0
+        )
+        .reduce((subSum, update) => subSum + (update.quantity || 0), 0);
+      return sum + stockTotal;
+    }, 0);
+
+    worksheet.addRow({
+      productId: 'Summary',
+      totalAddedByStock: totalStockAddedAcrossAll
+    });
+
+    // Style the summary row
+    const lastRow = worksheet.lastRow;
+    lastRow.font = { bold: true };
+    lastRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFDDDD' }
+    };
 
     // Set response headers for file download
     res.setHeader(
