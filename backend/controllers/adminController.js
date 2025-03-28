@@ -332,61 +332,158 @@ const adminController = {
 
   //to see Stock History
 
+  // getFullStockHistory: async (req, res) => {
+  //   try {
+  //     const { startDate, endDate, productId } = req.query;
+      
+  //     let query = {};
+      
+  //     // Add date range filter if provided
+  //     if (startDate && endDate) {
+  //       query['updateHistory.updatedAt'] = {
+  //         $gte: new Date(startDate),
+  //         $lte: new Date(endDate)
+  //       };
+  //     }
+  
+  //     // Add product filter if provided
+  //     if (productId) {
+  //       query.productId = productId;
+  //     }
+  
+  //     const stockHistory = await Stock.find(query)
+  //       .populate('productId', 'name description')
+  //       .populate('updatedBy', 'name email')
+  //       .populate('updateHistory.updatedBy', 'name email')
+  //       .sort({ 'updateHistory.updatedAt': -1 });
+  
+  //     // Format the response for better readability
+  //     const formattedHistory = stockHistory.map(stock => ({
+  //       productId: stock.productId._id,
+  //       productName: stock.productId.name,
+  //       productDescription: stock.productId.description,
+  //       currentQuantity: stock.quantity,
+  //       lastUpdated: stock.lastUpdated,
+  //       lastUpdatedBy: {
+  //         id: stock.updatedBy?._id,
+  //         name: stock.updatedBy?.name,
+  //         email: stock.updatedBy?.email
+  //       },
+  //       updateHistory: stock.updateHistory.map(update => ({
+  //         quantity: update.quantity,
+  //         updatedAt: update.updatedAt,
+  //         updatedBy: {
+  //           id: update.updatedBy?._id,
+  //           name: update.updatedBy?.name,
+  //           email: update.updatedBy?.email
+  //         },
+  //         changeType: update.changeType,
+  //         notes: update.notes
+  //       }))
+  //     }));
+  
+  //     // Calculate summary statistics
+  //     const summary = {
+  //       totalRecords: stockHistory.length,
+  //       totalUpdates: stockHistory.reduce((sum, stock) => sum + stock.updateHistory.length, 0),
+  //       productsTracked: new Set(stockHistory.map(stock => stock.productId.toString())).size
+  //     };
+  
+  //     res.json({
+  //       success: true,
+  //       history: formattedHistory,
+  //       summary
+  //     });
+  //   } catch (error) {
+  //     console.error('Error fetching full stock history:', error);
+  //     res.status(500).json({
+  //       success: false,
+  //       error: 'Error fetching stock history',
+  //       details: error.message
+  //     });
+  //   }
+  // },
+
+
   getFullStockHistory: async (req, res) => {
     try {
       const { startDate, endDate, productId } = req.query;
       
       let query = {};
       
-      // Add date range filter if provided
       if (startDate && endDate) {
         query['updateHistory.updatedAt'] = {
           $gte: new Date(startDate),
           $lte: new Date(endDate)
         };
       }
-  
-      // Add product filter if provided
+      
       if (productId) {
         query.productId = productId;
       }
   
       const stockHistory = await Stock.find(query)
         .populate('productId', 'name description')
-        .populate('updatedBy', 'name email')
-        .populate('updateHistory.updatedBy', 'name email')
+        .populate('updatedBy', 'name email role')
+        .populate('updateHistory.updatedBy', 'name email role')
         .sort({ 'updateHistory.updatedAt': -1 });
   
-      // Format the response for better readability
-      const formattedHistory = stockHistory.map(stock => ({
-        productId: stock.productId._id,
-        productName: stock.productId.name,
-        productDescription: stock.productId.description,
-        currentQuantity: stock.quantity,
-        lastUpdated: stock.lastUpdated,
-        lastUpdatedBy: {
-          id: stock.updatedBy?._id,
-          name: stock.updatedBy?.name,
-          email: stock.updatedBy?.email
-        },
-        updateHistory: stock.updateHistory.map(update => ({
-          quantity: update.quantity,
-          updatedAt: update.updatedAt,
-          updatedBy: {
-            id: update.updatedBy?._id,
-            name: update.updatedBy?.name,
-            email: update.updatedBy?.email
-          },
-          changeType: update.changeType,
-          notes: update.notes
-        }))
-      }));
+      const formattedHistory = stockHistory.map(stock => {
+        // Filter stock additions by stock personnel (only positive additions)
+        const stockAdditions = stock.updateHistory
+          .filter(update => 
+            update.updatedBy?.role === 'stock' && 
+            update.changeType === 'addition' && 
+            update.quantity > 0
+          )
+          .map(update => ({
+            quantity: update.quantity,
+            date: update.updatedAt,
+            updatedBy: {
+              id: update.updatedBy?._id,
+              name: update.updatedBy?.name,
+              email: update.updatedBy?.email
+            }
+          }));
   
-      // Calculate summary statistics
+        // Calculate total quantity added by stock personnel
+        const totalAddedByStock = stockAdditions.reduce((sum, addition) => 
+          sum + (addition.quantity || 0), 0);
+  
+        return {
+          productId: stock.productId._id,
+          productName: stock.productId.name,
+          productDescription: stock.productId.description,
+          currentQuantity: stock.quantity,
+          lastUpdated: stock.lastUpdated,
+          lastUpdatedBy: {
+            id: stock.updatedBy?._id,
+            name: stock.updatedBy?.name,
+            email: stock.updatedBy?.email,
+            role: stock.updatedBy?.role
+          },
+          stockAdditionHistory: stockAdditions,
+          totalAddedByStock,
+          updateHistory: stock.updateHistory.map(update => ({
+            quantity: update.quantity,
+            updatedAt: update.updatedAt,
+            updatedBy: {
+              id: update.updatedBy?._id,
+              name: update.updatedBy?.name,
+              email: update.updatedBy?.email,
+              role: update.updatedBy?.role
+            },
+            changeType: update.changeType,
+            notes: update.notes
+          }))
+        };
+      });
+  
       const summary = {
         totalRecords: stockHistory.length,
         totalUpdates: stockHistory.reduce((sum, stock) => sum + stock.updateHistory.length, 0),
-        productsTracked: new Set(stockHistory.map(stock => stock.productId.toString())).size
+        productsTracked: new Set(stockHistory.map(stock => stock.productId.toString())).size,
+        totalAddedByStock: formattedHistory.reduce((sum, item) => sum + item.totalAddedByStock, 0)
       };
   
       res.json({
@@ -404,13 +501,104 @@ const adminController = {
     }
   },
 
+// downloadFullStockHistory: async (req, res) => {
+//   try {
+//     const { startDate, endDate, productId } = req.query;
+    
+//     let query = {};
+    
+//     // Add date range filter if provided
+//     if (startDate && endDate) {
+//       query['updateHistory.updatedAt'] = {
+//         $gte: new Date(startDate),
+//         $lte: new Date(endDate)
+//       };
+//     }
+
+//     // Add product filter if provided
+//     if (productId) {
+//       query.productId = productId;
+//     }
+
+//     const stockHistory = await Stock.find(query)
+//       .populate('productId', 'name description ')
+//       .populate('updatedBy', 'name email')
+//       .populate('updateHistory.updatedBy', 'name email')
+//       .sort({ 'updateHistory.updatedAt': -1 });
+
+//     // Create a new Excel workbook and worksheet
+//     const workbook = new ExcelJS.Workbook();
+//     const worksheet = workbook.addWorksheet('Stock History');
+
+//     // Define column headers
+//     worksheet.columns = [
+//       { header: 'Product ID', key: 'productId', width: 25 },
+//       { header: 'Product Name', key: 'productName', width: 20 },
+//       { header: 'Description', key: 'productDescription', width: 30 },
+//       { header: 'Current Quantity', key: 'currentQuantity', width: 15 },
+//       { header: 'Last Updated', key: 'lastUpdated', width: 20 },
+//       { header: 'Last Updated By', key: 'lastUpdatedBy', width: 20 },
+//       { header: 'Update Date', key: 'updateDate', width: 20 },
+//       { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
+//       { header: 'Change Type', key: 'changeType', width: 15 },
+//       { header: 'Updated By', key: 'updatedBy', width: 20 },
+//       { header: 'Notes', key: 'notes', width: 30 }
+//     ];
+
+//     // Style the header row
+//     worksheet.getRow(1).font = { bold: true };
+//     worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+//     worksheet.getRow(1).fill = {
+//       type: 'pattern',
+//       pattern: 'solid',
+//       fgColor: { argb: 'FFDDDDDD' }
+//     };
+
+//     // Add data to the worksheet
+//     stockHistory.forEach(stock => {
+//       stock.updateHistory.forEach(update => {
+//         worksheet.addRow({
+//           productId: stock.productId._id.toString(),
+//           productName: stock.productId.name,
+//           productDescription: stock.productId.description,
+//           // productImage: stock.productId.image || 'N/A',
+//           currentQuantity: stock.quantity,
+//           lastUpdated: stock.lastUpdated.toLocaleString(),
+//           lastUpdatedBy: stock.updatedBy?.name || 'N/A',
+//           updateDate: update.updatedAt.toLocaleString(),
+//           updateQuantity: update.quantity,
+//           changeType: update.changeType,
+//           updatedBy: update.updatedBy?.name || 'N/A',
+//           notes: update.notes || 'N/A'
+//         });
+//       });
+//     });
+
+//     // Set response headers for file download
+//     res.setHeader(
+//       'Content-Type',
+//       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+//     );
+//     res.setHeader(
+//       'Content-Disposition',
+//       'attachment; filename="Full_Stock_History.xlsx"'
+//     );
+
+//     // Write the workbook to the response stream
+//     await workbook.xlsx.write(res);
+//     res.end();
+//   } catch (error) {
+//     console.error('Error generating stock history Excel:', error);
+//     res.status(500).json({ error: 'Error generating stock history Excel file' });
+//   }
+// },
+
 downloadFullStockHistory: async (req, res) => {
   try {
     const { startDate, endDate, productId } = req.query;
     
     let query = {};
     
-    // Add date range filter if provided
     if (startDate && endDate) {
       query['updateHistory.updatedAt'] = {
         $gte: new Date(startDate),
@@ -418,18 +606,16 @@ downloadFullStockHistory: async (req, res) => {
       };
     }
 
-    // Add product filter if provided
     if (productId) {
       query.productId = productId;
     }
 
     const stockHistory = await Stock.find(query)
-      .populate('productId', 'name description ')
-      .populate('updatedBy', 'name email')
-      .populate('updateHistory.updatedBy', 'name email')
+      .populate('productId', 'name description')
+      .populate('updatedBy', 'name email role')
+      .populate('updateHistory.updatedBy', 'name email role')
       .sort({ 'updateHistory.updatedAt': -1 });
 
-    // Create a new Excel workbook and worksheet
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Stock History');
 
@@ -445,6 +631,8 @@ downloadFullStockHistory: async (req, res) => {
       { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
       { header: 'Change Type', key: 'changeType', width: 15 },
       { header: 'Updated By', key: 'updatedBy', width: 20 },
+      { header: 'Stock Addition', key: 'stockAddition', width: 15 },  // New column for stock additions
+      { header: 'Total Added by Stock', key: 'totalAddedByStock', width: 20 },  // New column for total
       { header: 'Notes', key: 'notes', width: 30 }
     ];
 
@@ -459,12 +647,24 @@ downloadFullStockHistory: async (req, res) => {
 
     // Add data to the worksheet
     stockHistory.forEach(stock => {
+      // Calculate total added by stock for this product
+      const totalAddedByStock = stock.updateHistory
+        .filter(update => 
+          update.updatedBy?.role === 'stock' && 
+          update.changeType === 'addition' && 
+          update.quantity > 0
+        )
+        .reduce((sum, update) => sum + (update.quantity || 0), 0);
+
       stock.updateHistory.forEach(update => {
+        const isStockAddition = update.updatedBy?.role === 'stock' && 
+                              update.changeType === 'addition' && 
+                              update.quantity > 0;
+
         worksheet.addRow({
           productId: stock.productId._id.toString(),
           productName: stock.productId.name,
           productDescription: stock.productId.description,
-          // productImage: stock.productId.image || 'N/A',
           currentQuantity: stock.quantity,
           lastUpdated: stock.lastUpdated.toLocaleString(),
           lastUpdatedBy: stock.updatedBy?.name || 'N/A',
@@ -472,6 +672,8 @@ downloadFullStockHistory: async (req, res) => {
           updateQuantity: update.quantity,
           changeType: update.changeType,
           updatedBy: update.updatedBy?.name || 'N/A',
+          stockAddition: isStockAddition ? update.quantity : '',  // Show only positive stock additions
+          totalAddedByStock: totalAddedByStock,  // Show total for each row of this product
           notes: update.notes || 'N/A'
         });
       });
