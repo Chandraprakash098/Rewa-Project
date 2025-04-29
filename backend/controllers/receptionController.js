@@ -297,212 +297,235 @@ const receptionController = {
     }
   },
 
-//   createOrderAsReception: async (req, res) => {
-//     try {
-//         if (!req.isReceptionAccess) {
-//             return res.status(403).json({ error: 'Invalid access type' });
-//         }
 
-//         const { products, paymentMethod } = req.body;
 
-//         if (!products?.length) {
-//             return res.status(400).json({ error: 'Products are required' });
-//         }
+// createOrderAsReception : async (req, res) => {
+//   try {
+//       if (!req.isReceptionAccess) {
+//           return res.status(403).json({ error: 'Invalid access type' });
+//       }
 
-//         let totalAmount = 0;
-//         const orderProducts = [];
-//         const productTypes = new Set(); // Store product types
+//       const { products, paymentMethod } = req.body;
 
-//         // Validate and process products
-//         for (const item of products) {
-//             const product = await Product.findOne({
-//                 _id: item.productId,
-//                 isActive: true
-//             });
+//       if (!products?.length) {
+//           return res.status(400).json({ error: 'Products are required' });
+//       }
 
-//             if (!product) {
-//                 return res.status(404).json({
-//                     error: `Product not found: ${item.productId}`
-//                 });
-//             }
+//       let totalAmount = 0;
+//       const orderProducts = [];
+//       const productTypes = new Set();
 
-//             if (product.quantity < item.quantity) {
-//                 return res.status(400).json({
-//                     error: `Insufficient stock for ${product.name}`
-//                 });
-//             }
+//       // Validate and process products
+//       for (const item of products) {
+//           const product = await Product.findOne({
+//               _id: item.productId,
+//               isActive: true
+//           });
 
-//             const isValidOffer = product.discountedPrice &&
-//                 product.validFrom &&
-//                 product.validTo &&
-//                 new Date() >= product.validFrom &&
-//                 new Date() <= product.validTo;
+//           if (!product) {
+//               return res.status(404).json({
+//                   error: `Product not found: ${item.productId}`
+//               });
+//           }
 
-//             const price = isValidOffer ? product.discountedPrice : product.originalPrice;
-//             totalAmount += price * item.quantity;
+//           // if (product.quantity < item.quantity) {
+//           //     return res.status(400).json({
+//           //         error: `Insufficient stock for ${product.name}`
+//           //     });
+//           // }
 
-//             orderProducts.push({
-//                 product: product._id,
-//                 quantity: item.quantity,
-//                 price
-//             });
+//           const isValidOffer = product.discountedPrice &&
+//               product.validFrom &&
+//               product.validTo &&
+//               new Date() >= product.validFrom &&
+//               new Date() <= product.validTo;
 
-//             productTypes.add(product.type); // Collect product types
+//           // const price = isValidOffer ? product.discountedPrice : product.originalPrice;
+//           const price = Number(isValidOffer ? product.discountedPrice : product.originalPrice);
+//           const quantity = Number(item.quantity);
+//           totalAmount += price * item.quantity;
 
-//             // Update product quantity
-//             product.quantity -= item.quantity;
-//             await product.save();
-//         }
+//           orderProducts.push({
+//               product: product._id,
+//               quantity: item.quantity,
+//               price
+//           });
 
-//         // Ensure at least one product type is selected
-//         if (productTypes.size === 0) {
-//             return res.status(400).json({ error: "Order must contain at least one valid product type" });
-//         }
+//           productTypes.add(product.type);
 
-//         // Create order
-//         const order = new Order({
-//             user: req.customerUser._id,
-//             products: orderProducts,
-//             totalAmount,
-//             totalAmountWithDelivery: totalAmount, // Will be updated when delivery charge is added
-//             paymentMethod,
-//             paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-//             orderStatus: 'pending',
-//             shippingAddress: req.customerUser.customerDetails.address,
-//             firmName: req.customerUser.customerDetails.firmName,
-//             gstNumber: req.customerUser.customerDetails.gstNumber,
-//             createdByReception: req.user._id,
-//             type: [...productTypes][0] // Assigning product type
-//         });
+//           // Update product quantity
+//           product.quantity -= item.quantity;
+//           await product.save();
+//       }
 
-//         await order.save();
+//       // Create order with miscellaneous flag if applicable
+//       const orderData = new Order({
+//           user: req.customerUser._id,
+//           products: orderProducts,
+//           totalAmount,
+//           totalAmountWithDelivery: totalAmount,
+//           paymentMethod,
+//           paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+//           orderStatus: 'pending',
+//           createdByReception: req.user._id,
+//           type: [...productTypes][0]
+//       });
 
-//         res.status(201).json({
-//             message: 'Order created successfully',
-//             order: {
-//                 ...order.toObject(),
-//                 createdBy: {
-//                     reception: req.user.name,
-//                     customer: req.customerUser.customerDetails.firmName
-//                 }
-//             }
-//         });
-//     } catch (error) {
-//         res.status(500).json({
-//             error: 'Error creating order',
-//             details: error.message
-//         });
+//       // Add required fields based on user type
+//       if (req.customerUser.role === 'miscellaneous') {
+//         orderData.firmName = `${req.customerUser.name} (Miscellaneous)`;
+//         orderData.shippingAddress = 'Walk-in Customer';
+//         orderData.isMiscellaneous = true;
+//     } else {
+//         orderData.firmName = req.customerUser.customerDetails.firmName;
+//         orderData.shippingAddress = req.customerUser.customerDetails.address;
+//         orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
 //     }
+
+//     const order = new Order(orderData);
+//     await order.save();
+
+//       res.status(201).json({
+//           message: 'Order created successfully',
+//           order: {
+//               ...order.toObject(),
+//               createdBy: {
+//                   reception: req.user.name,
+//                   customer: req.customerUser.role === 'miscellaneous' ? 
+//                       `${req.customerUser.name} (Miscellaneous)` : 
+//                       req.customerUser.customerDetails.firmName
+//               }
+//           }
+//       });
+//   } catch (error) {
+//       res.status(500).json({
+//           error: 'Error creating order',
+//           details: error.message
+//       });
+//   }
 // },
 
-
-createOrderAsReception : async (req, res) => {
+createOrderAsReception: async (req, res) => {
   try {
-      if (!req.isReceptionAccess) {
-          return res.status(403).json({ error: 'Invalid access type' });
+    if (!req.isReceptionAccess) {
+      return res.status(403).json({ error: 'Invalid access type' });
+    }
+
+    const { products, paymentMethod, name, mobileNo } = req.body;
+
+    if (!products?.length) {
+      return res.status(400).json({ error: 'Products are required' });
+    }
+
+    if (req.isMiscellaneous && (!name || !mobileNo)) {
+      return res.status(400).json({ error: 'Name and mobile number are required for miscellaneous orders' });
+    }
+
+    let totalAmount = 0;
+    const orderProducts = [];
+    const productTypes = new Set();
+
+    // Validate and process products
+    for (const item of products) {
+      if (!item.productId || !item.quantity || item.price === undefined) {
+        return res.status(400).json({
+          error: `Invalid product data: ${JSON.stringify(item)}`
+        });
       }
 
-      const { products, paymentMethod } = req.body;
-
-      if (!products?.length) {
-          return res.status(400).json({ error: 'Products are required' });
-      }
-
-      let totalAmount = 0;
-      const orderProducts = [];
-      const productTypes = new Set();
-
-      // Validate and process products
-      for (const item of products) {
-          const product = await Product.findOne({
-              _id: item.productId,
-              isActive: true
-          });
-
-          if (!product) {
-              return res.status(404).json({
-                  error: `Product not found: ${item.productId}`
-              });
-          }
-
-          // if (product.quantity < item.quantity) {
-          //     return res.status(400).json({
-          //         error: `Insufficient stock for ${product.name}`
-          //     });
-          // }
-
-          const isValidOffer = product.discountedPrice &&
-              product.validFrom &&
-              product.validTo &&
-              new Date() >= product.validFrom &&
-              new Date() <= product.validTo;
-
-          // const price = isValidOffer ? product.discountedPrice : product.originalPrice;
-          const price = Number(isValidOffer ? product.discountedPrice : product.originalPrice);
-          const quantity = Number(item.quantity);
-          totalAmount += price * item.quantity;
-
-          orderProducts.push({
-              product: product._id,
-              quantity: item.quantity,
-              price
-          });
-
-          productTypes.add(product.type);
-
-          // Update product quantity
-          product.quantity -= item.quantity;
-          await product.save();
-      }
-
-      // Create order with miscellaneous flag if applicable
-      const orderData = new Order({
-          user: req.customerUser._id,
-          products: orderProducts,
-          totalAmount,
-          totalAmountWithDelivery: totalAmount,
-          paymentMethod,
-          paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-          orderStatus: 'pending',
-          createdByReception: req.user._id,
-          type: [...productTypes][0]
+      const product = await Product.findOne({
+        _id: item.productId,
+        isActive: true
       });
 
-      // Add required fields based on user type
-      if (req.customerUser.role === 'miscellaneous') {
-        orderData.firmName = `${req.customerUser.name} (Miscellaneous)`;
-        orderData.shippingAddress = 'Walk-in Customer';
-        orderData.isMiscellaneous = true;
+      if (!product) {
+        return res.status(404).json({
+          error: `Product not found: ${item.productId}`
+        });
+      }
+
+      const quantity = Number(item.quantity);
+      if (quantity < 1) {
+        return res.status(400).json({
+          error: `Invalid quantity for ${product.name}`
+        });
+      }
+
+      const price = Number(item.price);
+      if (isNaN(price) || price < 0) {
+        return res.status(400).json({
+          error: `Invalid price for ${product.name}`
+        });
+      }
+
+      totalAmount += price * quantity;
+
+      orderProducts.push({
+        product: product._id,
+        quantity,
+        price
+      });
+
+      productTypes.add(product.type);
+
+      // Update product quantity
+      product.quantity -= quantity;
+      await product.save();
+    }
+
+    // Create order with miscellaneous flag if applicable
+    const orderData = new Order({
+      user: req.customerUser._id,
+      products: orderProducts,
+      totalAmount,
+      totalAmountWithDelivery: totalAmount,
+      paymentMethod,
+      paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+      orderStatus: 'pending',
+      createdByReception: req.user._id,
+      type: [...productTypes][0]
+    });
+
+    // Add required fields based on user type
+    if (req.customerUser.role === 'miscellaneous') {
+      orderData.firmName = `${name} (Miscellaneous)`;
+      orderData.shippingAddress = 'Walk-in Customer';
+      orderData.isMiscellaneous = true;
+
+      // Update miscellaneous user with provided mobileNo
+      req.customerUser.phoneNumber = mobileNo;
+      req.customerUser.name = name;
+      req.customerUser.customerDetails.firmName = `${name} (Miscellaneous)`;
+      await req.customerUser.save();
     } else {
-        orderData.firmName = req.customerUser.customerDetails.firmName;
-        orderData.shippingAddress = req.customerUser.customerDetails.address;
-        orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
+      orderData.firmName = req.customerUser.customerDetails.firmName;
+      orderData.shippingAddress = req.customerUser.customerDetails.address;
+      orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
     }
 
     const order = new Order(orderData);
     await order.save();
 
-      res.status(201).json({
-          message: 'Order created successfully',
-          order: {
-              ...order.toObject(),
-              createdBy: {
-                  reception: req.user.name,
-                  customer: req.customerUser.role === 'miscellaneous' ? 
-                      `${req.customerUser.name} (Miscellaneous)` : 
-                      req.customerUser.customerDetails.firmName
-              }
-          }
-      });
+    res.status(201).json({
+      message: 'Order created successfully',
+      order: {
+        ...order.toObject(),
+        createdBy: {
+          reception: req.user.name,
+          customer: req.customerUser.role === 'miscellaneous' ? 
+            `${name} (Miscellaneous)` : 
+            req.customerUser.customerDetails.firmName
+        }
+      }
+    });
   } catch (error) {
-      res.status(500).json({
-          error: 'Error creating order',
-          details: error.message
-      });
+    console.error('Error creating order:', error);
+    res.status(500).json({
+      error: 'Error creating order',
+      details: error.message
+    });
   }
 },
-
-
 
 
   getOrderHistory : async (req, res) => {
@@ -927,46 +950,118 @@ addDeliveryCharge: async (req, res) => {
 
 
 
+// getMiscellaneousPanelAccess: async (req, res) => {
+//   try {
+//     const { name, email } = req.body;
+
+//     if (!name || !email) {
+//       return res.status(400).json({ error: 'Name and email are required' });
+//     }
+
+//     // Find miscellaneous user by email only
+//     let miscUser = await User.findOne({ 
+//       email, 
+//       role: 'miscellaneous'
+//     });
+
+//     if (!miscUser) {
+//       // Generate a unique user code
+//       const userCode = await generateUserCode();
+      
+//       miscUser = new User({
+//         name: name,  // Use provided name for new user
+//         email,
+//         role: 'miscellaneous',
+//         password: Math.random().toString(36).slice(-8),
+//         phoneNumber: '0000000000',
+//         isActive: true,
+//         customerDetails: {
+//           firmName: `${name} (Miscellaneous)`,
+//           userCode: userCode,
+//           address: 'Walk-in Customer'
+//         }
+//       });
+//       await miscUser.save();
+//     } else {
+//       // Update only the name and firmName for existing user
+//       miscUser.name = name;
+//       miscUser.customerDetails.firmName = `${name} (Miscellaneous)`;
+//       await miscUser.save();
+//     }
+
+//     // Generate special token for reception user panel access
+//     const token = jwt.sign(
+//       {
+//         userId: req.user._id,
+//         customerId: miscUser._id,
+//         isReceptionAccess: true,
+//         isMiscellaneous: true
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '4h' }
+//     );
+
+//     res.json({
+//       success: true,
+//       token,
+//       customer: {
+//         name: name,  // Return the provided name instead of stored name
+//         email: miscUser.email,
+//         firmName: `${name} (Miscellaneous)`,  // Use provided name in firm name
+//         userCode: miscUser.customerDetails?.userCode
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Get miscellaneous panel access error:', error);
+//     res.status(500).json({
+//       error: 'Error generating miscellaneous panel access',
+//       details: error.message
+//     });
+//   }
+// }
+
 getMiscellaneousPanelAccess: async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, mobileNo } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
+    if (!name || !email || !mobileNo) {
+      return res.status(400).json({ error: 'Name, email, and mobile number are required' });
     }
 
-    // Find miscellaneous user by email only
+    // Validate mobile number (basic validation, adjust as needed)
+    if (!/^\d{10}$/.test(mobileNo)) {
+      return res.status(400).json({ error: 'Invalid mobile number. Must be 10 digits.' });
+    }
+
     let miscUser = await User.findOne({ 
       email, 
       role: 'miscellaneous'
     });
 
     if (!miscUser) {
-      // Generate a unique user code
       const userCode = await generateUserCode();
       
       miscUser = new User({
-        name: name,  // Use provided name for new user
+        name,
         email,
+        phoneNumber: mobileNo,
         role: 'miscellaneous',
         password: Math.random().toString(36).slice(-8),
-        phoneNumber: '0000000000',
         isActive: true,
         customerDetails: {
           firmName: `${name} (Miscellaneous)`,
-          userCode: userCode,
+          userCode,
           address: 'Walk-in Customer'
         }
       });
       await miscUser.save();
     } else {
-      // Update only the name and firmName for existing user
       miscUser.name = name;
+      miscUser.phoneNumber = mobileNo;
       miscUser.customerDetails.firmName = `${name} (Miscellaneous)`;
       await miscUser.save();
     }
 
-    // Generate special token for reception user panel access
     const token = jwt.sign(
       {
         userId: req.user._id,
@@ -982,9 +1077,10 @@ getMiscellaneousPanelAccess: async (req, res) => {
       success: true,
       token,
       customer: {
-        name: name,  // Return the provided name instead of stored name
+        name,
         email: miscUser.email,
-        firmName: `${name} (Miscellaneous)`,  // Use provided name in firm name
+        mobileNo,
+        firmName: `${name} (Miscellaneous)`,
         userCode: miscUser.customerDetails?.userCode
       }
     });
@@ -996,8 +1092,6 @@ getMiscellaneousPanelAccess: async (req, res) => {
     });
   }
 }
-
-
 
 
 
