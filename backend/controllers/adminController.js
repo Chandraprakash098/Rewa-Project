@@ -9,6 +9,7 @@ const UserActivity = require('../models/UserActivity')
 const ExcelJS = require('exceljs');
 const Stock = require('../models/Stock')
 // const passwordCache = new Map();
+const Banner = require('../models/Banner');
 
 const adminController = {
   getAllStaff: async (req, res) => {
@@ -330,81 +331,6 @@ const adminController = {
     }
   },
 
-  //to see Stock History
-
-  // getFullStockHistory: async (req, res) => {
-  //   try {
-  //     const { startDate, endDate, productId } = req.query;
-      
-  //     let query = {};
-      
-  //     // Add date range filter if provided
-  //     if (startDate && endDate) {
-  //       query['updateHistory.updatedAt'] = {
-  //         $gte: new Date(startDate),
-  //         $lte: new Date(endDate)
-  //       };
-  //     }
-  
-  //     // Add product filter if provided
-  //     if (productId) {
-  //       query.productId = productId;
-  //     }
-  
-  //     const stockHistory = await Stock.find(query)
-  //       .populate('productId', 'name description')
-  //       .populate('updatedBy', 'name email')
-  //       .populate('updateHistory.updatedBy', 'name email')
-  //       .sort({ 'updateHistory.updatedAt': -1 });
-  
-  //     // Format the response for better readability
-  //     const formattedHistory = stockHistory.map(stock => ({
-  //       productId: stock.productId._id,
-  //       productName: stock.productId.name,
-  //       productDescription: stock.productId.description,
-  //       currentQuantity: stock.quantity,
-  //       lastUpdated: stock.lastUpdated,
-  //       lastUpdatedBy: {
-  //         id: stock.updatedBy?._id,
-  //         name: stock.updatedBy?.name,
-  //         email: stock.updatedBy?.email
-  //       },
-  //       updateHistory: stock.updateHistory.map(update => ({
-  //         quantity: update.quantity,
-  //         updatedAt: update.updatedAt,
-  //         updatedBy: {
-  //           id: update.updatedBy?._id,
-  //           name: update.updatedBy?.name,
-  //           email: update.updatedBy?.email
-  //         },
-  //         changeType: update.changeType,
-  //         notes: update.notes
-  //       }))
-  //     }));
-  
-  //     // Calculate summary statistics
-  //     const summary = {
-  //       totalRecords: stockHistory.length,
-  //       totalUpdates: stockHistory.reduce((sum, stock) => sum + stock.updateHistory.length, 0),
-  //       productsTracked: new Set(stockHistory.map(stock => stock.productId.toString())).size
-  //     };
-  
-  //     res.json({
-  //       success: true,
-  //       history: formattedHistory,
-  //       summary
-  //     });
-  //   } catch (error) {
-  //     console.error('Error fetching full stock history:', error);
-  //     res.status(500).json({
-  //       success: false,
-  //       error: 'Error fetching stock history',
-  //       details: error.message
-  //     });
-  //   }
-  // },
-
-
   getFullStockHistory: async (req, res) => {
     try {
       const { startDate, endDate, productId } = req.query;
@@ -501,97 +427,6 @@ const adminController = {
     }
   },
 
-// downloadFullStockHistory: async (req, res) => {
-//   try {
-//     const { startDate, endDate, productId } = req.query;
-    
-//     let query = {};
-    
-//     // Add date range filter if provided
-//     if (startDate && endDate) {
-//       query['updateHistory.updatedAt'] = {
-//         $gte: new Date(startDate),
-//         $lte: new Date(endDate)
-//       };
-//     }
-
-//     // Add product filter if provided
-//     if (productId) {
-//       query.productId = productId;
-//     }
-
-//     const stockHistory = await Stock.find(query)
-//       .populate('productId', 'name description ')
-//       .populate('updatedBy', 'name email')
-//       .populate('updateHistory.updatedBy', 'name email')
-//       .sort({ 'updateHistory.updatedAt': -1 });
-
-//     // Create a new Excel workbook and worksheet
-//     const workbook = new ExcelJS.Workbook();
-//     const worksheet = workbook.addWorksheet('Stock History');
-
-//     // Define column headers
-//     worksheet.columns = [
-//       { header: 'Product ID', key: 'productId', width: 25 },
-//       { header: 'Product Name', key: 'productName', width: 20 },
-//       { header: 'Description', key: 'productDescription', width: 30 },
-//       { header: 'Current Quantity', key: 'currentQuantity', width: 15 },
-//       { header: 'Last Updated', key: 'lastUpdated', width: 20 },
-//       { header: 'Last Updated By', key: 'lastUpdatedBy', width: 20 },
-//       { header: 'Update Date', key: 'updateDate', width: 20 },
-//       { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
-//       { header: 'Change Type', key: 'changeType', width: 15 },
-//       { header: 'Updated By', key: 'updatedBy', width: 20 },
-//       { header: 'Notes', key: 'notes', width: 30 }
-//     ];
-
-//     // Style the header row
-//     worksheet.getRow(1).font = { bold: true };
-//     worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-//     worksheet.getRow(1).fill = {
-//       type: 'pattern',
-//       pattern: 'solid',
-//       fgColor: { argb: 'FFDDDDDD' }
-//     };
-
-//     // Add data to the worksheet
-//     stockHistory.forEach(stock => {
-//       stock.updateHistory.forEach(update => {
-//         worksheet.addRow({
-//           productId: stock.productId._id.toString(),
-//           productName: stock.productId.name,
-//           productDescription: stock.productId.description,
-//           // productImage: stock.productId.image || 'N/A',
-//           currentQuantity: stock.quantity,
-//           lastUpdated: stock.lastUpdated.toLocaleString(),
-//           lastUpdatedBy: stock.updatedBy?.name || 'N/A',
-//           updateDate: update.updatedAt.toLocaleString(),
-//           updateQuantity: update.quantity,
-//           changeType: update.changeType,
-//           updatedBy: update.updatedBy?.name || 'N/A',
-//           notes: update.notes || 'N/A'
-//         });
-//       });
-//     });
-
-//     // Set response headers for file download
-//     res.setHeader(
-//       'Content-Type',
-//       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//     );
-//     res.setHeader(
-//       'Content-Disposition',
-//       'attachment; filename="Full_Stock_History.xlsx"'
-//     );
-
-//     // Write the workbook to the response stream
-//     await workbook.xlsx.write(res);
-//     res.end();
-//   } catch (error) {
-//     console.error('Error generating stock history Excel:', error);
-//     res.status(500).json({ error: 'Error generating stock history Excel file' });
-//   }
-// },
 
 downloadFullStockHistory: async (req, res) => {
   try {
@@ -1478,6 +1313,152 @@ getAdminProfile: async (req, res) => {
     res.status(500).json({ error: 'Error fetching admin profile' });
   }
 },
+
+  // New Banner Management Methods
+  uploadBanner: async (req, res) => {
+    try {
+      // Check if a file is provided
+      if (!req.file) {
+        return res.status(400).json({ error: 'Banner image is required' });
+      }
+
+      // Count existing active banners
+      const bannerCount = await Banner.countDocuments({ isActive: true });
+      if (bannerCount >= 3) {
+        return res.status(400).json({ error: 'Maximum 3 banners allowed. Delete or update existing banners.' });
+      }
+
+      // Upload image to Cloudinary
+      const b64 = req.file.buffer.toString('base64');
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: 'banners',
+        resource_type: 'image'
+      });
+
+      // Determine the next order number (1, 2, or 3)
+      const existingOrders = await Banner.find({ isActive: true }).select('order');
+      const usedOrders = existingOrders.map(b => b.order);
+      const availableOrder = [1, 2, 3].find(o => !usedOrders.includes(o));
+
+      // Create new banner
+      const banner = new Banner({
+        image: result.secure_url,
+        order: availableOrder
+      });
+
+      await banner.save();
+      res.status(201).json({
+        message: 'Banner uploaded successfully',
+        banner
+      });
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      res.status(500).json({ error: 'Error uploading banner' });
+    }
+  },
+
+  updateBanner: async (req, res) => {
+    try {
+      const { bannerId } = req.params;
+
+      // Find existing banner
+      const banner = await Banner.findById(bannerId);
+      if (!banner) {
+        return res.status(404).json({ error: 'Banner not found' });
+      }
+
+      // Prepare updates
+      const updates = {};
+      if (req.body.order) {
+        const newOrder = Number(req.body.order);
+        if (![1, 2, 3].includes(newOrder)) {
+          return res.status(400).json({ error: 'Order must be 1, 2, or 3' });
+        }
+
+        // Check if the new order is already taken by another banner
+        const conflictingBanner = await Banner.findOne({
+          order: newOrder,
+          _id: { $ne: bannerId },
+          isActive: true
+        });
+        if (conflictingBanner) {
+          return res.status(400).json({ error: `Order ${newOrder} is already assigned to another banner` });
+        }
+        updates.order = newOrder;
+      }
+
+      // Handle image update
+      if (req.file) {
+        // Upload new image to Cloudinary
+        const b64 = req.file.buffer.toString('base64');
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        const result = await cloudinary.uploader.upload(dataURI, {
+          folder: 'banners',
+          resource_type: 'image'
+        });
+        updates.image = result.secure_url;
+
+        // Delete old image from Cloudinary
+        if (banner.image) {
+          const publicId = banner.image.split('/').pop().split('.')[0];
+          await cloudinary.uploader.destroy(`banners/${publicId}`);
+        }
+      }
+
+      // Update banner
+      const updatedBanner = await Banner.findByIdAndUpdate(
+        bannerId,
+        updates,
+        { new: true }
+      );
+
+      res.json({
+        message: 'Banner updated successfully',
+        banner: updatedBanner
+      });
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      res.status(500).json({ error: 'Error updating banner' });
+    }
+  },
+
+  deleteBanner: async (req, res) => {
+    try {
+      const { bannerId } = req.params;
+
+      // Find banner
+      const banner = await Banner.findById(bannerId);
+      if (!banner) {
+        return res.status(404).json({ error: 'Banner not found' });
+      }
+
+      // Delete image from Cloudinary
+      if (banner.image) {
+        const publicId = banner.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`banners/${publicId}`);
+      }
+
+      // Delete banner from database
+      await Banner.findByIdAndDelete(bannerId);
+
+      res.json({ message: 'Banner deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting banner:', error);
+      res.status(500).json({ error: 'Error deleting banner' });
+    }
+  },
+
+  getAllBanners: async (req, res) => {
+    try {
+      const banners = await Banner.find({ isActive: true })
+        .sort({ order: 1 }); // Sort by order for consistent display
+      res.json({ banners });
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+      res.status(500).json({ error: 'Error fetching banners' });
+    }
+  }
 
 };
 

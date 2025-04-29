@@ -52,4 +52,10 @@ router.get('/profile', adminController.getAdminProfile);
 router.get('/stock/full-history', adminController.getFullStockHistory);
 router.get('/stock/full-history/download', adminController.downloadFullStockHistory);
 
+
+router.post('/banners', upload.single('image'), adminController.uploadBanner);
+router.put('/banners/:bannerId', upload.single('image'), adminController.updateBanner);
+router.delete('/banners/:bannerId', adminController.deleteBanner);
+router.get('/banners', adminController.getAllBanners);
+
 module.exports = router;

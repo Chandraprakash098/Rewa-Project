@@ -75,4 +75,7 @@ router.get('/profile', auth, userController.getProfile);
 router.put('/profile', auth, userController.updateProfile);
 router.post('/profile/change-password', auth, userController.changePassword);
 
+
+router.get('/banners', auth, userController.getBanners);
+
 module.exports = router;

@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const Banner = require("../models/Banner");
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -213,6 +214,19 @@ getAllProducts: async (req, res) => {
       res.status(500).json({ error: "Error fetching profile" });
     }
   },
+
+    // New method to get banners
+    getBanners: async (req, res) => {
+      try {
+        const banners = await Banner.find({ isActive: true })
+          .sort({ order: 1 }) // Sort by order for consistent display
+          .select('image order');
+        res.json({ banners });
+      } catch (error) {
+        console.error('Error fetching banners:', error);
+        res.status(500).json({ error: 'Error fetching banners' });
+      }
+    }
 };
 
 module.exports = userController;
