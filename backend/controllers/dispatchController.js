@@ -484,6 +484,55 @@ exports.updateCODPaymentStatus = async (req, res) => {
       details: error.message 
     });
   }
+}
+  exports.getPendingPayments = async (req, res) => {
+    try {
+      const pendingOrders = await Order.find({
+        paymentStatus: 'pending'
+      })
+        .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+        .populate('products.product', 'name type')
+        .sort({ createdAt: -1 });
+  
+      const formattedOrders = pendingOrders.map(order => ({
+        orderId: order.orderId,
+        user: {
+          name: order.user?.name || 'N/A',
+          firmName: order.user?.customerDetails?.firmName || 'N/A',
+          userCode: order.user?.customerDetails?.userCode || 'N/A',
+          phoneNumber: order.user?.phoneNumber || 'N/A',
+          email: order.user?.email || 'N/A'
+        },
+        products: order.products.map(p => ({
+          productName: p.product?.name || 'N/A',
+          productType: p.product?.type || 'N/A',
+          quantity: Number(p.quantity),
+          price: Number(p.price)
+        })),
+        totalAmount: Number(order.totalAmount),
+        deliveryCharge: Number(order.deliveryCharge || 0),
+        totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+        shippingAddress: order.shippingAddress,
+        firmName: order.firmName,
+        gstNumber: order.gstNumber || 'N/A',
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }));
+  
+      res.json({
+        count: formattedOrders.length,
+        pendingPayments: formattedOrders
+      });
+    } catch (error) {
+      console.error('Error fetching pending payments:', error);
+      res.status(500).json({
+        error: 'Error fetching pending payments',
+        details: error.message
+      });
+    }
 };
 
 

@@ -42,4 +42,7 @@ router.patch('/orders/:orderId/cod-payment-status',
   dispatchController.updateCODPaymentStatus
 );
 
+// New route for pending payments
+router.get('/pending-payments', dispatchController.getPendingPayments);
+
 module.exports = router;
