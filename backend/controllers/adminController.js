@@ -240,6 +240,84 @@ const adminController = {
 
 
 
+  // createProduct: async (req, res) => {
+  //   try {
+  //     const {
+  //       name,
+  //       type,
+  //       category,
+  //       description,
+  //       originalPrice,
+  //       discountedPrice,
+  //       quantity,
+  //       validFrom,
+  //       validTo
+  //     } = req.body;
+  
+  //     // Validate category based on type
+  //     const validCategories = Product.getCategoriesByType(type);
+  //     if (!validCategories.includes(category)) {
+  //       return res.status(400).json({
+  //         error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}`
+  //       });
+  //     }
+  
+  //     // Validate offer dates if discount is provided
+  //     if (discountedPrice) {
+  //       if (!validFrom || !validTo) {
+  //         return res.status(400).json({
+  //           error: 'validFrom and validTo dates are required when setting a discounted price'
+  //         });
+  //       }
+  
+  //       const fromDate = new Date(validFrom);
+  //       const toDate = new Date(validTo);
+  //       const now = new Date();
+  
+  //       if (fromDate > toDate) {
+  //         return res.status(400).json({
+  //           error: 'validTo date must be after validFrom date'
+  //         });
+  //       }
+  //     }
+  
+  //     let imageUrl = null;
+  
+  //     if (req.file) {
+  //       // Convert buffer to base64
+  //       const b64 = req.file.buffer.toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+  
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+  
+  //       imageUrl = result.secure_url;
+  //     }
+  
+  //     const product = new Product({
+  //       name,
+  //       type,
+  //       category,
+  //       description,
+  //       originalPrice: Number(originalPrice),
+  //       discountedPrice: discountedPrice ? Number(discountedPrice) : null,
+  //       quantity,
+  //       image: imageUrl,
+  //       validFrom: validFrom || null,
+  //       validTo: validTo || null
+  //     });
+  
+  //     await product.save();
+  //     res.status(201).json({ product });
+  //   } catch (error) {
+  //     console.error('Error creating product:', error);
+  //     res.status(500).json({ error: error.message || 'Error creating product' });
+  //   }
+  // },
+
+
   createProduct: async (req, res) => {
     try {
       const {
@@ -249,11 +327,12 @@ const adminController = {
         description,
         originalPrice,
         discountedPrice,
-        quantity,
+        boxes,
+        bottlesPerBox,
         validFrom,
         validTo
       } = req.body;
-  
+
       // Validate category based on type
       const validCategories = Product.getCategoriesByType(type);
       if (!validCategories.includes(category)) {
@@ -261,7 +340,21 @@ const adminController = {
           error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}`
         });
       }
-  
+
+      // Validate boxes
+      if (!boxes || Number(boxes) < 230) {
+        return res.status(400).json({
+          error: 'Minimum 230 boxes are required'
+        });
+      }
+
+      // Validate bottlesPerBox
+      if (!bottlesPerBox || Number(bottlesPerBox) < 1) {
+        return res.status(400).json({
+          error: 'bottlesPerBox must be at least 1'
+        });
+      }
+
       // Validate offer dates if discount is provided
       if (discountedPrice) {
         if (!validFrom || !validTo) {
@@ -269,33 +362,32 @@ const adminController = {
             error: 'validFrom and validTo dates are required when setting a discounted price'
           });
         }
-  
+
         const fromDate = new Date(validFrom);
         const toDate = new Date(validTo);
         const now = new Date();
-  
+
         if (fromDate > toDate) {
           return res.status(400).json({
             error: 'validTo date must be after validFrom date'
           });
         }
       }
-  
+
       let imageUrl = null;
-  
+
       if (req.file) {
-        // Convert buffer to base64
         const b64 = req.file.buffer.toString('base64');
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-  
+
         const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'products',
           resource_type: 'auto'
         });
-  
+
         imageUrl = result.secure_url;
       }
-  
+
       const product = new Product({
         name,
         type,
@@ -303,12 +395,13 @@ const adminController = {
         description,
         originalPrice: Number(originalPrice),
         discountedPrice: discountedPrice ? Number(discountedPrice) : null,
-        quantity,
+        boxes: Number(boxes),
+        bottlesPerBox: Number(bottlesPerBox),
         image: imageUrl,
         validFrom: validFrom || null,
         validTo: validTo || null
       });
-  
+
       await product.save();
       res.status(201).json({ product });
     } catch (error) {
@@ -560,11 +653,76 @@ downloadFullStockHistory: async (req, res) => {
   }
 },
 
+// getAllProducts: async (req, res) => {
+//   try {
+//     const { type, category } = req.query;
+//     let query = { isActive: true };
+    
+//     if (type) {
+//       query.type = type;
+//       if (category) {
+//         const validCategories = Product.getCategoriesByType(type);
+//         if (!validCategories.includes(category)) {
+//           return res.status(400).json({ error: 'Invalid category for the selected type' });
+//         }
+//         query.category = category;
+//       }
+//     }
+    
+//     const products = await Product.find(query)
+//       .populate({
+//         path: 'stockRemarks.updatedBy',
+//         select: 'name'
+//       })
+//       .sort({ 'stockRemarks.updatedAt': -1 });
+
+//     const formattedProducts = products.map(product => {
+//       const productObj = product.toObject({ virtuals: true });
+//       const now = new Date();
+//       const isOfferValid = productObj.discountedPrice && 
+//                           productObj.validFrom && 
+//                           productObj.validTo && 
+//                           now >= productObj.validFrom && 
+//                           now <= productObj.validTo;
+
+//       if (!isOfferValid) {
+//         delete productObj.discountedPrice;
+//         delete productObj.discountPercentage; // Explicitly remove discountPercentage
+//         delete productObj.discountTag;
+//         delete productObj.offerEndsIn;
+//       } else {
+//         productObj.discountPercentage = Math.round(((productObj.originalPrice - productObj.discountedPrice) / productObj.originalPrice) * 100);
+//       }
+
+//       if (productObj.stockRemarks && productObj.stockRemarks.length > 0) {
+//         productObj.stockUpdateInfo = {
+//           lastUpdate: {
+//             message: productObj.stockRemarks[0].message,
+//             updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
+//             updatedAt: productObj.stockRemarks[0].updatedAt,
+//             quantity: productObj.stockRemarks[0].quantity,
+//             changeType: productObj.stockRemarks[0].changeType
+//           },
+//           totalUpdates: productObj.stockRemarks.length
+//         };
+//       }
+      
+//       return productObj;
+//     });
+
+//     res.json({ products: formattedProducts });
+//   } catch (error) {
+//     console.error('Error in admin getAllProducts:', error);
+//     res.status(500).json({ error: 'Error fetching products' });
+//   }
+// },
+
+
 getAllProducts: async (req, res) => {
   try {
     const { type, category } = req.query;
     let query = { isActive: true };
-    
+
     if (type) {
       query.type = type;
       if (category) {
@@ -575,7 +733,7 @@ getAllProducts: async (req, res) => {
         query.category = category;
       }
     }
-    
+
     const products = await Product.find(query)
       .populate({
         path: 'stockRemarks.updatedBy',
@@ -586,15 +744,15 @@ getAllProducts: async (req, res) => {
     const formattedProducts = products.map(product => {
       const productObj = product.toObject({ virtuals: true });
       const now = new Date();
-      const isOfferValid = productObj.discountedPrice && 
-                          productObj.validFrom && 
-                          productObj.validTo && 
-                          now >= productObj.validFrom && 
+      const isOfferValid = productObj.discountedPrice &&
+                          productObj.validFrom &&
+                          productObj.validTo &&
+                          now >= productObj.validFrom &&
                           now <= productObj.validTo;
 
       if (!isOfferValid) {
         delete productObj.discountedPrice;
-        delete productObj.discountPercentage; // Explicitly remove discountPercentage
+        delete productObj.discountPercentage;
         delete productObj.discountTag;
         delete productObj.offerEndsIn;
       } else {
@@ -607,13 +765,13 @@ getAllProducts: async (req, res) => {
             message: productObj.stockRemarks[0].message,
             updatedBy: productObj.stockRemarks[0].updatedBy?.name || 'Unknown User',
             updatedAt: productObj.stockRemarks[0].updatedAt,
-            quantity: productObj.stockRemarks[0].quantity,
+            boxes: productObj.stockRemarks[0].boxes, // Changed from quantity
             changeType: productObj.stockRemarks[0].changeType
           },
           totalUpdates: productObj.stockRemarks.length
         };
       }
-      
+
       return productObj;
     });
 
@@ -637,28 +795,104 @@ getAllProducts: async (req, res) => {
   },
 
 
+  // updateProduct: async (req, res) => {
+  //   try {
+  //     const updates = {
+  //       ...req.body,
+  //       originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
+  //       discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null,
+  //       validFrom: req.body.validFrom || null,
+  //       validTo: req.body.validTo || null
+  //     };
+  
+  //     // Validate offer dates if discount is being updated
+  //     if (updates.discountedPrice !== undefined) {
+  //       if (updates.discountedPrice && (!updates.validFrom || !updates.validTo)) {
+  //         return res.status(400).json({
+  //           error: 'validFrom and validTo dates are required when setting a discounted price'
+  //         });
+  //       }
+  
+  //       if (updates.validFrom && updates.validTo) {
+  //         const fromDate = new Date(updates.validFrom);
+  //         const toDate = new Date(updates.validTo);
+  
+  //         if (fromDate > toDate) {
+  //           return res.status(400).json({
+  //             error: 'validTo date must be after validFrom date'
+  //           });
+  //         }
+  //       }
+  //     }
+      
+  //     if (req.file) {
+  //       const b64 = Buffer.from(req.file.buffer).toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+        
+  //       updates.image = result.secure_url;
+        
+  //       const oldProduct = await Product.findById(req.params.productId);
+  //       if (oldProduct && oldProduct.image) {
+  //         const publicId = oldProduct.image.split('/').pop().split('.')[0];
+  //         await cloudinary.uploader.destroy(`products/${publicId}`);
+  //       }
+  //     }
+  
+  //     const product = await Product.findByIdAndUpdate(
+  //       req.params.productId,
+  //       updates,
+  //       { new: true }
+  //     );
+  
+  //     if (!product) return res.status(404).json({ error: 'Product not found' });
+  //     res.json({ product });
+  //   } catch (error) {
+  //     console.error('Error updating product:', error);
+  //     res.status(500).json({ error: 'Error updating product' });
+  //   }
+  // },
+
+
   updateProduct: async (req, res) => {
     try {
       const updates = {
         ...req.body,
         originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
-        discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null,
+        discountedPrice: req.body.discountedPrice ? Number(req.body)  : null,
+        boxes: req.body.boxes ? Number(req.body.boxes) : undefined,
+        bottlesPerBox: req.body.bottlesPerBox ? Number(req.body.bottlesPerBox) : undefined,
         validFrom: req.body.validFrom || null,
         validTo: req.body.validTo || null
       };
-  
-      // Validate offer dates if discount is being updated
+
+      if (updates.boxes && updates.boxes < 230) {
+        return res.status(400).json({
+          error: 'Minimum 230 boxes are required'
+        });
+      }
+
+      if (updates.bottlesPerBox && updates.bottlesPerBox < 1) {
+        return res.status(400).json({
+          error: 'bottlesPerBox must be at least 1'
+        });
+      }
+
       if (updates.discountedPrice !== undefined) {
         if (updates.discountedPrice && (!updates.validFrom || !updates.validTo)) {
           return res.status(400).json({
             error: 'validFrom and validTo dates are required when setting a discounted price'
           });
         }
-  
+
         if (updates.validFrom && updates.validTo) {
           const fromDate = new Date(updates.validFrom);
           const toDate = new Date(updates.validTo);
-  
+
           if (fromDate > toDate) {
             return res.status(400).json({
               error: 'validTo date must be after validFrom date'
@@ -666,31 +900,31 @@ getAllProducts: async (req, res) => {
           }
         }
       }
-      
+
       if (req.file) {
         const b64 = Buffer.from(req.file.buffer).toString('base64');
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        
+
         const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'products',
           resource_type: 'auto'
         });
-        
+
         updates.image = result.secure_url;
-        
+
         const oldProduct = await Product.findById(req.params.productId);
         if (oldProduct && oldProduct.image) {
           const publicId = oldProduct.image.split('/').pop().split('.')[0];
           await cloudinary.uploader.destroy(`products/${publicId}`);
         }
       }
-  
+
       const product = await Product.findByIdAndUpdate(
         req.params.productId,
         updates,
         { new: true }
       );
-  
+
       if (!product) return res.status(404).json({ error: 'Product not found' });
       res.json({ product });
     } catch (error) {
@@ -698,7 +932,6 @@ getAllProducts: async (req, res) => {
       res.status(500).json({ error: 'Error updating product' });
     }
   },
-
 
   getPreviewOrders: async (req, res) => {
     try {
@@ -1467,3 +1700,8 @@ getAdminProfile: async (req, res) => {
   
 
 module.exports = adminController;
+
+
+
+
+

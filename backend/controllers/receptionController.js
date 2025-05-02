@@ -34,6 +34,20 @@ const getMiscellaneousUser = async (email) => {
   return user;
 };
 
+const isAhmedabadOrGandhinagar = (pinCode) => {
+  // Ahmedabad pin codes: 380001 to 382481
+  // Gandhinagar pin codes: 382010 to 382855
+  const pin = Number(pinCode);
+  return (pin >= 380001 && pin <= 382481) || (pin >= 382010 && pin <= 382855);
+};
+
+const calculateDeliveryCharge = (boxes, deliveryChoice, pinCode) => {
+  if (deliveryChoice === 'companyPickup' || !isAhmedabadOrGandhinagar(pinCode)) {
+    return 0; // No delivery charge for company pickup or non-Ahmedabad/Gandhinagar
+  }
+  return boxes >= 230 && boxes <= 299 ? boxes * 2 : boxes * 3;
+};
+
 
 const receptionController = {
   createCustomer: async (req, res) => {
@@ -299,111 +313,129 @@ const receptionController = {
 
 
 
-// createOrderAsReception : async (req, res) => {
+
+// createOrderAsReception: async (req, res) => {
 //   try {
-//       if (!req.isReceptionAccess) {
-//           return res.status(403).json({ error: 'Invalid access type' });
+//     if (!req.isReceptionAccess) {
+//       return res.status(403).json({ error: 'Invalid access type' });
+//     }
+
+//     const { products, paymentMethod, name, mobileNo } = req.body;
+
+//     if (!products?.length) {
+//       return res.status(400).json({ error: 'Products are required' });
+//     }
+
+//     if (req.isMiscellaneous && (!name || !mobileNo)) {
+//       return res.status(400).json({ error: 'Name and mobile number are required for miscellaneous orders' });
+//     }
+
+//     let totalAmount = 0;
+//     const orderProducts = [];
+//     const productTypes = new Set();
+
+//     // Validate and process products
+//     for (const item of products) {
+//       if (!item.productId || !item.quantity || item.price === undefined) {
+//         return res.status(400).json({
+//           error: `Invalid product data: ${JSON.stringify(item)}`
+//         });
 //       }
 
-//       const { products, paymentMethod } = req.body;
-
-//       if (!products?.length) {
-//           return res.status(400).json({ error: 'Products are required' });
-//       }
-
-//       let totalAmount = 0;
-//       const orderProducts = [];
-//       const productTypes = new Set();
-
-//       // Validate and process products
-//       for (const item of products) {
-//           const product = await Product.findOne({
-//               _id: item.productId,
-//               isActive: true
-//           });
-
-//           if (!product) {
-//               return res.status(404).json({
-//                   error: `Product not found: ${item.productId}`
-//               });
-//           }
-
-//           // if (product.quantity < item.quantity) {
-//           //     return res.status(400).json({
-//           //         error: `Insufficient stock for ${product.name}`
-//           //     });
-//           // }
-
-//           const isValidOffer = product.discountedPrice &&
-//               product.validFrom &&
-//               product.validTo &&
-//               new Date() >= product.validFrom &&
-//               new Date() <= product.validTo;
-
-//           // const price = isValidOffer ? product.discountedPrice : product.originalPrice;
-//           const price = Number(isValidOffer ? product.discountedPrice : product.originalPrice);
-//           const quantity = Number(item.quantity);
-//           totalAmount += price * item.quantity;
-
-//           orderProducts.push({
-//               product: product._id,
-//               quantity: item.quantity,
-//               price
-//           });
-
-//           productTypes.add(product.type);
-
-//           // Update product quantity
-//           product.quantity -= item.quantity;
-//           await product.save();
-//       }
-
-//       // Create order with miscellaneous flag if applicable
-//       const orderData = new Order({
-//           user: req.customerUser._id,
-//           products: orderProducts,
-//           totalAmount,
-//           totalAmountWithDelivery: totalAmount,
-//           paymentMethod,
-//           paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-//           orderStatus: 'pending',
-//           createdByReception: req.user._id,
-//           type: [...productTypes][0]
+//       const product = await Product.findOne({
+//         _id: item.productId,
+//         isActive: true
 //       });
 
-//       // Add required fields based on user type
-//       if (req.customerUser.role === 'miscellaneous') {
-//         orderData.firmName = `${req.customerUser.name} (Miscellaneous)`;
-//         orderData.shippingAddress = 'Walk-in Customer';
-//         orderData.isMiscellaneous = true;
+//       if (!product) {
+//         return res.status(404).json({
+//           error: `Product not found: ${item.productId}`
+//         });
+//       }
+
+//       const quantity = Number(item.quantity);
+//       if (quantity < 1) {
+//         return res.status(400).json({
+//           error: `Invalid quantity for ${product.name}`
+//         });
+//       }
+
+//       const price = Number(item.price);
+//       if (isNaN(price) || price < 0) {
+//         return res.status(400).json({
+//           error: `Invalid price for ${product.name}`
+//         });
+//       }
+
+//       totalAmount += price * quantity;
+
+//       orderProducts.push({
+//         product: product._id,
+//         quantity,
+//         price
+//       });
+
+//       productTypes.add(product.type);
+
+//       // Update product quantity
+//       product.quantity -= quantity;
+//       await product.save();
+//     }
+
+//     // Create order with miscellaneous flag if applicable
+//     const orderData = new Order({
+//       user: req.customerUser._id,
+//       products: orderProducts,
+//       totalAmount,
+//       totalAmountWithDelivery: totalAmount,
+//       paymentMethod,
+//       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
+//       orderStatus: 'pending',
+//       createdByReception: req.user._id,
+//       type: [...productTypes][0]
+//     });
+
+//     // Add required fields based on user type
+//     if (req.customerUser.role === 'miscellaneous') {
+//       orderData.firmName = `${name} (Miscellaneous)`;
+//       orderData.shippingAddress = 'Walk-in Customer';
+//       orderData.isMiscellaneous = true;
+
+//       // Update miscellaneous user with provided mobileNo
+//       req.customerUser.phoneNumber = mobileNo;
+//       req.customerUser.name = name;
+//       req.customerUser.customerDetails.firmName = `${name} (Miscellaneous)`;
+//       await req.customerUser.save();
 //     } else {
-//         orderData.firmName = req.customerUser.customerDetails.firmName;
-//         orderData.shippingAddress = req.customerUser.customerDetails.address;
-//         orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
+//       orderData.firmName = req.customerUser.customerDetails.firmName;
+//       orderData.shippingAddress = req.customerUser.customerDetails.address;
+//       orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
 //     }
 
 //     const order = new Order(orderData);
 //     await order.save();
 
-//       res.status(201).json({
-//           message: 'Order created successfully',
-//           order: {
-//               ...order.toObject(),
-//               createdBy: {
-//                   reception: req.user.name,
-//                   customer: req.customerUser.role === 'miscellaneous' ? 
-//                       `${req.customerUser.name} (Miscellaneous)` : 
-//                       req.customerUser.customerDetails.firmName
-//               }
-//           }
-//       });
+//     res.status(201).json({
+//       message: 'Order created successfully',
+//       order: {
+//         ...order.toObject(),
+//         createdBy: {
+//           reception: req.user.name,
+//           customer: req.customerUser.role === 'miscellaneous' ? 
+//             `${name} (Miscellaneous)` : 
+//             req.customerUser.customerDetails.firmName
+//         }
+//       }
+//     });
 //   } catch (error) {
-//       res.status(500).json({
-//           error: 'Error creating order',
-//           details: error.message
-//       });
+//     console.error('Error creating order:', error);
+//     res.status(500).json({
+//       error: 'Error creating order',
+//       details: error.message
+//     });
 //   }
 // },
+
 
 createOrderAsReception: async (req, res) => {
   try {
@@ -411,7 +443,7 @@ createOrderAsReception: async (req, res) => {
       return res.status(403).json({ error: 'Invalid access type' });
     }
 
-    const { products, paymentMethod, name, mobileNo } = req.body;
+    const { products, paymentMethod, name, mobileNo, shippingAddress, deliveryChoice } = req.body;
 
     if (!products?.length) {
       return res.status(400).json({ error: 'Products are required' });
@@ -421,13 +453,24 @@ createOrderAsReception: async (req, res) => {
       return res.status(400).json({ error: 'Name and mobile number are required for miscellaneous orders' });
     }
 
+    if (!shippingAddress || !shippingAddress.address || !shippingAddress.city || !shippingAddress.state || !shippingAddress.pinCode) {
+      return res.status(400).json({ error: 'Complete shipping address with pin code is required' });
+    }
+
+    if (!/^\d{6}$/.test(shippingAddress.pinCode)) {
+      return res.status(400).json({ error: 'Pin code must be 6 digits' });
+    }
+
+    if (!['homeDelivery', 'companyPickup'].includes(deliveryChoice)) {
+      return res.status(400).json({ error: 'Invalid delivery choice' });
+    }
+
     let totalAmount = 0;
     const orderProducts = [];
     const productTypes = new Set();
 
-    // Validate and process products
     for (const item of products) {
-      if (!item.productId || !item.quantity || item.price === undefined) {
+      if (!item.productId || !item.boxes || item.price === undefined) {
         return res.status(400).json({
           error: `Invalid product data: ${JSON.stringify(item)}`
         });
@@ -444,10 +487,10 @@ createOrderAsReception: async (req, res) => {
         });
       }
 
-      const quantity = Number(item.quantity);
-      if (quantity < 1) {
+      const boxes = Number(item.boxes);
+      if (boxes < 230) {
         return res.status(400).json({
-          error: `Invalid quantity for ${product.name}`
+          error: `Minimum 230 boxes required for ${product.name}`
         });
       }
 
@@ -458,49 +501,52 @@ createOrderAsReception: async (req, res) => {
         });
       }
 
-      totalAmount += price * quantity;
+      totalAmount += price * boxes;
 
       orderProducts.push({
         product: product._id,
-        quantity,
+        boxes,
         price
       });
 
       productTypes.add(product.type);
 
-      // Update product quantity
-      product.quantity -= quantity;
+      product.boxes -= boxes;
       await product.save();
     }
 
-    // Create order with miscellaneous flag if applicable
+    const deliveryCharge = calculateDeliveryCharge(
+      orderProducts.reduce((sum, item) => sum + item.boxes, 0),
+      deliveryChoice,
+      shippingAddress.pinCode
+    );
+
     const orderData = new Order({
       user: req.customerUser._id,
       products: orderProducts,
       totalAmount,
-      totalAmountWithDelivery: totalAmount,
+      deliveryCharge,
+      totalAmountWithDelivery: totalAmount + deliveryCharge,
       paymentMethod,
       paymentStatus: paymentMethod === 'COD' ? 'pending' : 'completed',
-      orderStatus: 'pending',
+      orderStatus: isAhmedabadOrGandhinagar(shippingAddress.pinCode) ? 'pending' : 'preview',
       createdByReception: req.user._id,
-      type: [...productTypes][0]
+      type: [...productTypes][0],
+      shippingAddress,
+      deliveryChoice,
+      firmName: req.customerUser.customerDetails.firmName,
+      gstNumber: req.customerUser.customerDetails.gstNumber
     });
 
-    // Add required fields based on user type
     if (req.customerUser.role === 'miscellaneous') {
       orderData.firmName = `${name} (Miscellaneous)`;
-      orderData.shippingAddress = 'Walk-in Customer';
+      orderData.shippingAddress = shippingAddress;
       orderData.isMiscellaneous = true;
 
-      // Update miscellaneous user with provided mobileNo
       req.customerUser.phoneNumber = mobileNo;
       req.customerUser.name = name;
       req.customerUser.customerDetails.firmName = `${name} (Miscellaneous)`;
       await req.customerUser.save();
-    } else {
-      orderData.firmName = req.customerUser.customerDetails.firmName;
-      orderData.shippingAddress = req.customerUser.customerDetails.address;
-      orderData.gstNumber = req.customerUser.customerDetails.gstNumber;
     }
 
     const order = new Order(orderData);
@@ -512,8 +558,8 @@ createOrderAsReception: async (req, res) => {
         ...order.toObject(),
         createdBy: {
           reception: req.user.name,
-          customer: req.customerUser.role === 'miscellaneous' ? 
-            `${name} (Miscellaneous)` : 
+          customer: req.customerUser.role === 'miscellaneous' ?
+            `${name} (Miscellaneous)` :
             req.customerUser.customerDetails.firmName
         }
       }
@@ -625,71 +671,6 @@ createOrderAsReception: async (req, res) => {
   },
 
 
-
-// checkIn: async (req, res) => {
-//   try {
-//     const { selectedDate } = req.body;
-
-//     if (!req.file) {
-//       return res.status(400).json({
-//         error: 'Please upload a check-in image'
-//       });
-//     }
-
-//     if (!selectedDate) {
-//       return res.status(400).json({
-//         error: 'Please select a date for check-in'
-//       });
-//     }
-
-//     // Convert selectedDate to start of day
-//     const checkInDate = new Date(selectedDate);
-//     checkInDate.setHours(0, 0, 0, 0);
-
-//     // Check if already checked in for selected date
-//     const existingAttendance = await Attendance.findOne({
-//       user: req.user._id,
-//       panel: 'reception',
-//       selectedDate: checkInDate,
-//       $or: [{ status: 'checked-in' }, { status: 'present' }]
-//     });
-
-//     if (existingAttendance) {
-//       return res.status(400).json({
-//         error: 'Already checked in for this date'
-//       });
-//     }
-
-//     // Upload image to Cloudinary
-//     const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
-//       folder: 'check-in-photos',
-//       resource_type: 'image'
-//     });
-
-//     // Create new attendance record
-//     const attendance = new Attendance({
-//       user: req.user._id,
-//       panel: 'reception',
-//       checkInTime: new Date(),
-//       selectedDate: checkInDate,
-//       status: 'present',
-//       checkInImage: cloudinaryResponse.secure_url
-//     });
-
-//     await attendance.save();
-
-//     res.json({
-//       message: 'Check-in successful',
-//       attendance
-//     });
-//   } catch (error) {
-//     console.error('Check-in error:', error);
-//     res.status(500).json({
-//       error: 'Error during check-in',
-//       details: error.message
-//     });
-//   }
-// },
 
 
 checkIn : async (req, res) => {
@@ -850,6 +831,8 @@ getAttendance: async (req, res) => {
   }
 },
 
+
+
 // addDeliveryCharge: async (req, res) => {
 //   try {
 //     const { orderId, deliveryCharge } = req.body;
@@ -858,6 +841,14 @@ getAttendance: async (req, res) => {
 //     if (!orderId || deliveryCharge === undefined || deliveryCharge < 0) {
 //       return res.status(400).json({ 
 //         error: 'Invalid order ID or delivery charge' 
+//       });
+//     }
+
+//     // Convert deliveryCharge to number explicitly
+//     const numericDeliveryCharge = Number(deliveryCharge);
+//     if (isNaN(numericDeliveryCharge)) {
+//       return res.status(400).json({ 
+//         error: 'Delivery charge must be a valid number' 
 //       });
 //     }
 
@@ -874,11 +865,12 @@ getAttendance: async (req, res) => {
 //       });
 //     }
 
-//     // Update order with delivery charge
-//     order.deliveryCharge = deliveryCharge;
-//     order.totalAmountWithDelivery = order.totalAmount + deliveryCharge;
+//     // Ensure totalAmount is a number and update with delivery charge
+//     const baseAmount = Number(order.totalAmount) || 0;
+//     order.deliveryCharge = numericDeliveryCharge;
+//     order.totalAmountWithDelivery = baseAmount + numericDeliveryCharge;
 //     order.deliveryChargeAddedBy = req.user._id;
-//     order.orderStatus = 'processing'; // Move to processing after adding delivery charge
+//     order.orderStatus = 'processing';
 
 //     await order.save();
 
@@ -887,6 +879,7 @@ getAttendance: async (req, res) => {
 //       order 
 //     });
 //   } catch (error) {
+//     console.error('Error adding delivery charge:', error);
 //     res.status(500).json({ 
 //       error: 'Error adding delivery charge', 
 //       details: error.message 
@@ -894,39 +887,77 @@ getAttendance: async (req, res) => {
 //   }
 // },
 
+
+// addDeliveryCharge: async (req, res) => {
+//   try {
+//     const { orderId, deliveryCharge } = req.body;
+
+//     if (!orderId || deliveryCharge === undefined) {
+//       return res.status(400).json({ error: 'Order ID and delivery charge are required' });
+//     }
+//     if (deliveryCharge < 0) {
+//       return res.status(400).json({ error: 'Delivery charge cannot be negative' });
+//     }
+
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({ error: 'Order not found' });
+//     }
+
+//     // Check if order is for a non-local pin code
+//     const LOCAL_PIN_CODES = ['380001', '380002', '380003', '380004', '380005', '380006', '380007', '380008', '380009', '380013', '380014', '380015', '380016', '380018', '380019', '380021', '380022', '380023', '380024', '380026', '380027', '380028', '380049', '380050', '380051', '380052', '380053', '380054', '380055', '380058', '380059', '380060', '380061', '380063', '382006', '382007', '382010', '382011', '382016', '382021', '382024', '382028', '382030', '382033', '382041', '382042', '382043', '382044', '382045', '382047', '382110', '382115', '382120', '382130', '382140', '382145', '382150', '382155', '382165', '382170', '382210', '382213', '382220', '382225', '382230', '382240', '382245', '382250', '382255', '382260', '382265', '382308', '382315', '382320', '382325', '382330', '382335', '382340', '382345', '382350', '382355', '382405', '382410', '382415', '382421', '382422', '382423', '382424', '382425', '382426', '382427', '382428', '382430', '382433', '382435', '382440', '382443', '382445', '382449', '382450', '382455', '382460', '382463', '382465', '382470', '382475', '382480', '382481'];
+//     const isLocal = LOCAL_PIN_CODES.includes(order.shippingAddress.pinCode);
+//     if (isLocal) {
+//       return res.status(400).json({ error: 'Delivery charge can only be added for non-local orders' });
+//     }
+
+//     order.deliveryCharge = deliveryCharge;
+//     order.totalAmountWithDelivery = order.total-amount + deliveryCharge;
+//     order.deliveryChargeAddedBy = req.user._id;
+
+//     await order.save();
+
+//     res.json({ message: 'Delivery charge added successfully', order });
+//   } catch (error) {
+//     console.error('Add delivery charge error:', error);
+//     res.status(500).json({ error: 'Error adding delivery charge' });
+//   }
+// },
+
 addDeliveryCharge: async (req, res) => {
   try {
     const { orderId, deliveryCharge } = req.body;
 
-    // Validate input
     if (!orderId || deliveryCharge === undefined || deliveryCharge < 0) {
-      return res.status(400).json({ 
-        error: 'Invalid order ID or delivery charge' 
+      return res.status(400).json({
+        error: 'Invalid order ID or delivery charge'
       });
     }
 
-    // Convert deliveryCharge to number explicitly
     const numericDeliveryCharge = Number(deliveryCharge);
     if (isNaN(numericDeliveryCharge)) {
-      return res.status(400).json({ 
-        error: 'Delivery charge must be a valid number' 
+      return res.status(400).json({
+        error: 'Delivery charge must be a valid number'
       });
     }
 
-    // Find the order
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Check order status
-    if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
-      return res.status(400).json({ 
-        error: 'Can only add delivery charge to pending or preview orders' 
+    // if (order.orderStatus !== 'preview') {
+    //   return res.status(400).json({
+    //     error: 'Can only add delivery charge to preview orders'
+    //   });
+    // }
+
+    if (isAhmedabadOrGandhinagar(order.shippingAddress.pinCode)) {
+      return res.status(400).json({
+        error: 'Cannot manually add delivery charge for Ahmedabad/Gandhinagar orders'
       });
     }
 
-    // Ensure totalAmount is a number and update with delivery charge
     const baseAmount = Number(order.totalAmount) || 0;
     order.deliveryCharge = numericDeliveryCharge;
     order.totalAmountWithDelivery = baseAmount + numericDeliveryCharge;
@@ -935,20 +966,18 @@ addDeliveryCharge: async (req, res) => {
 
     await order.save();
 
-    res.json({ 
-      message: 'Delivery charge added successfully', 
-      order 
+    res.json({
+      message: 'Delivery charge added successfully',
+      order
     });
   } catch (error) {
     console.error('Error adding delivery charge:', error);
-    res.status(500).json({ 
-      error: 'Error adding delivery charge', 
-      details: error.message 
+    res.status(500).json({
+      error: 'Error adding delivery charge',
+      details: error.message
     });
   }
 },
-
-
 
 // getMiscellaneousPanelAccess: async (req, res) => {
 //   try {
