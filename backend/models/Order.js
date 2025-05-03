@@ -263,25 +263,25 @@ const orderSchema = new mongoose.Schema({
   shippingAddress: {
     address: {
       type: String,
-      required: true
+      required: false
     },
     city: {
       type: String,
-      required: true
+      required: false
     },
     state: {
       type: String,
-      required: true
+      required: false
     },
     pinCode: {
       type: String,
-      required: true,
+      required: false,
       match: [/^\d{6}$/, 'Pin code must be 6 digits']
     }
   },
   deliveryChoice: {
     type: String,
-    required: true,
+    required: false,
     enum: ['homeDelivery', 'companyPickup']
   },
   firmName: {
