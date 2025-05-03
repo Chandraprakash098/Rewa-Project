@@ -174,7 +174,7 @@ const productSchema = new mongoose.Schema({
   boxes: {
     type: Number,
     required: true,
-    min: 0 // Minimum 230 boxes
+    // min: 0 // Minimum 230 boxes
   },
   bottlesPerBox: {
     type: Number,

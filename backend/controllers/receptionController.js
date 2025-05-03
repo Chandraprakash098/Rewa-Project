@@ -511,8 +511,17 @@ createOrderAsReception: async (req, res) => {
 
       productTypes.add(product.type);
 
-      product.boxes -= boxes;
+      // product.boxes -= boxes;
+      product.boxes = (product.boxes || 0) - boxes;
+
+      product.stockRemarks.push({
+        message: `Deducted ${boxes} boxes for order`,
+        updatedBy: req.user._id,
+        boxes: -boxes,
+        changeType: 'order'
+      });
       await product.save();
+      
     }
 
     const deliveryCharge = calculateDeliveryCharge(
