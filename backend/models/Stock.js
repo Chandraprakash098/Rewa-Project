@@ -21,7 +21,8 @@ const stockSchema = new mongoose.Schema({
         required: true
     },
     updateHistory: [{
-        quantity: Number,
+        // quantity: Number,
+        boxes: Number,
         updatedAt: Date,
         updatedBy: {
             type: mongoose.Schema.Types.ObjectId,
