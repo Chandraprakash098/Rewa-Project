@@ -5,6 +5,7 @@ const cloudinary = require('../config/cloudinary');
 const Challan = require('../models/Challan'); 
 const generateChallanPDF = require('../utils/pdfgen');
 const streamifier = require('streamifier');
+const ExcelJS = require('exceljs');
 
 //for Test
 
@@ -534,5 +535,119 @@ exports.updateCODPaymentStatus = async (req, res) => {
       });
     }
 };
+
+
+
+exports.downloadPendingPaymentsExcel = async (req, res) => {
+  try {
+    const pendingOrders = await Order.find({
+      paymentStatus: 'pending'
+    })
+      .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+      .populate('products.product', 'name type')
+      .sort({ createdAt: -1 });
+
+    const formattedOrders = pendingOrders.map(order => ({
+      orderId: order.orderId,
+      user: {
+        name: order.user?.name || 'N/A',
+        firmName: order.user?.customerDetails?.firmName || 'N/A',
+        userCode: order.user?.customerDetails?.userCode || 'N/A',
+        phoneNumber: order.user?.phoneNumber || 'N/A',
+        email: order.user?.email || 'N/A'
+      },
+      products: order.products.map(p => ({
+        productName: p.product?.name || 'N/A',
+        productType: p.product?.type || 'N/A',
+        quantity: Number(p.quantity),
+        price: Number(p.price)
+      })),
+      totalAmount: Number(order.totalAmount),
+      deliveryCharge: Number(order.deliveryCharge || 0),
+      totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      shippingAddress: order.shippingAddress,
+      firmName: order.firmName,
+      gstNumber: order.gstNumber || 'N/A',
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt
+    }));
+
+    // Create a new Excel workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Pending Payments');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Order ID', key: 'orderId', width: 15 },
+      { header: 'Customer Name', key: 'customerName', width: 20 },
+      { header: 'Firm Name', key: 'firmName', width: 20 },
+      { header: 'User Code', key: 'userCode', width: 15 },
+      { header: 'Phone Number', key: 'phoneNumber', width: 15 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Products', key: 'products', width: 30 },
+      { header: 'Total Amount', key: 'totalAmount', width: 15 },
+      { header: 'Delivery Charge', key: 'deliveryCharge', width: 15 },
+      { header: 'Total with Delivery', key: 'totalAmountWithDelivery', width: 20 },
+      { header: 'Payment Method', key: 'paymentMethod', width: 15 },
+      { header: 'Payment Status', key: 'paymentStatus', width: 15 },
+      { header: 'Order Status', key: 'orderStatus', width: 15 },
+      { header: 'Shipping Address', key: 'shippingAddress', width: 30 },
+      { header: 'GST Number', key: 'gstNumber', width: 15 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+      { header: 'Updated At', key: 'updatedAt', width: 20 }
+    ];
+
+    // Add rows
+    formattedOrders.forEach(order => {
+      worksheet.addRow({
+        orderId: order.orderId,
+        customerName: order.user.name,
+        firmName: order.user.firmName,
+        userCode: order.user.userCode,
+        phoneNumber: order.user.phoneNumber,
+        email: order.user.email,
+        products: order.products.map(p => `${p.productName} (${p.quantity})`).join(', '),
+        totalAmount: order.totalAmount,
+        deliveryCharge: order.deliveryCharge,
+        totalAmountWithDelivery: order.totalAmountWithDelivery,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+        shippingAddress: order.shippingAddress,
+        gstNumber: order.gstNumber,
+        createdAt: order.createdAt.toISOString(),
+        updatedAt: order.updatedAt.toISOString()
+      });
+    });
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'D3D3D3' }
+    };
+
+    // Set response headers for Excel download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=pending_payments.xlsx');
+
+    // Write the workbook to the response
+    await workbook.xlsx.write(res);
+
+    // End the response
+    res.end();
+  } catch (error) {
+    console.error('Error generating Excel file:', error);
+    res.status(500).json({
+      error: 'Error generating Excel file',
+      details: error.message
+    });
+  }
+
+  };
 
 
