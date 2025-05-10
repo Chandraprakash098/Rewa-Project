@@ -6,6 +6,7 @@ const Challan = require('../models/Challan');
 const generateChallanPDF = require('../utils/pdfgen');
 const streamifier = require('streamifier');
 const ExcelJS = require('exceljs');
+const { isAhmedabadOrGandhinagar, calculateDeliveryCharge } = require('./receptionController'); // Import helper functions
 
 //for Test
 
@@ -128,6 +129,94 @@ exports.downloadChallan = async (req, res) => {
   }
 };
 
+// exports.generateChallan = async (req, res) => {
+//   try {
+//     const {
+//       userCode,
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items,
+//       receiverName
+//     } = req.body;
+
+//     // Validate input
+//     if (!userCode) {
+//       return res.status(400).json({ error: 'User code is required' });
+//     }
+
+//     // Validate items
+//     if (!Array.isArray(items) || items.length === 0) {
+//       return res.status(400).json({ error: 'Invalid or empty items list' });
+//     }
+
+//     // Generate invoice number
+//     const invoiceNo = await generateInvoiceNumber();
+
+//     // Safely calculate total amount
+//     const totalAmount = items.reduce((sum, item) => {
+//       // Ensure each item has quantity and rate
+//       const quantity = Number(item.quantity) || 0;
+//       const rate = Number(item.rate) || 0;
+//       return sum + (quantity * rate);
+//     }, 0);
+
+//     // Prepare items for schema
+//     const formattedItems = items.map(item => ({
+//       description: item.productName || item.description || 'Unnamed Item',
+//       quantity: Number(item.quantity) || 0,
+//       rate: Number(item.rate) || 0,
+//       amount: Number(item.quantity || 0) * Number(item.rate || 0)
+//     }));
+
+//     // Create new challan
+//     const challan = new Challan({
+//       userCode,
+//       invoiceNo,
+//       date: new Date(),
+//       vehicleNo,
+//       driverName,
+//       mobileNo,
+//       items: formattedItems,
+//       totalAmount,
+//       receiverName,
+//       dcNo: invoiceNo // Add this to resolve the unique index issue
+//     });
+
+//     // Save the challan
+//     // await challan.save();
+
+//     const savedChallan = await challan.save();
+
+//     // res.json({
+//     //   message: 'Challan generated successfully',
+//     //   challan
+//     // });
+
+//     res.json({
+//       message: 'Challan generated successfully',
+//       challan: savedChallan,
+//       downloadUrl: `/api/dispatch/challan/${savedChallan._id}/download` // Add download URL
+//     });
+//   } catch (error) {
+//     console.error('Challan generation error:', error);
+    
+//     // More detailed error handling
+//     if (error.code === 11000) {
+//       return res.status(400).json({ 
+//         error: 'Duplicate challan generated',
+//         details: 'A challan with this number already exists'
+//       });
+//     }
+
+//     res.status(500).json({ 
+//       error: 'Error generating challan',
+//       details: error.message 
+//     });
+//   }
+// };
+
+
 exports.generateChallan = async (req, res) => {
   try {
     const {
@@ -136,7 +225,10 @@ exports.generateChallan = async (req, res) => {
       driverName,
       mobileNo,
       items,
-      receiverName
+      receiverName,
+      deliveryChoice, // New: 'homeDelivery' or 'companyPickup'
+      shippingAddress, // New: Contains address, city, state, pinCode
+      deliveryCharge: manualDeliveryCharge // New: Optional manual delivery charge
     } = req.body;
 
     // Validate input
@@ -149,24 +241,57 @@ exports.generateChallan = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or empty items list' });
     }
 
+    // Validate shipping address if provided
+    if (shippingAddress && (!shippingAddress.address || !shippingAddress.city || !shippingAddress.state || !shippingAddress.pinCode)) {
+      return res.status(400).json({ error: 'Complete shipping address with pin code is required' });
+    }
+
+    if (shippingAddress && !/^\d{6}$/.test(shippingAddress.pinCode)) {
+      return res.status(400).json({ error: 'Pin code must be 6 digits' });
+    }
+
+    // Validate delivery choice
+    if (deliveryChoice && !['homeDelivery', 'companyPickup'].includes(deliveryChoice)) {
+      return res.status(400).json({ error: 'Invalid delivery choice' });
+    }
+
     // Generate invoice number
     const invoiceNo = await generateInvoiceNumber();
 
-    // Safely calculate total amount
+    // Calculate total amount based on boxes and rate
     const totalAmount = items.reduce((sum, item) => {
-      // Ensure each item has quantity and rate
-      const quantity = Number(item.quantity) || 0;
+      const boxes = Number(item.boxes) || 0; // Use 'boxes' instead of 'quantity'
       const rate = Number(item.rate) || 0;
-      return sum + (quantity * rate);
+      if (boxes < 230) {
+        throw new Error(`Minimum 230 boxes required for item: ${item.productName || item.description}`);
+      }
+      return sum + (boxes * rate);
     }, 0);
 
     // Prepare items for schema
     const formattedItems = items.map(item => ({
       description: item.productName || item.description || 'Unnamed Item',
-      quantity: Number(item.quantity) || 0,
+      boxes: Number(item.boxes) || 0, // Use 'boxes' instead of 'quantity'
       rate: Number(item.rate) || 0,
-      amount: Number(item.quantity || 0) * Number(item.rate || 0)
+      amount: Number(item.boxes || 0) * Number(item.rate || 0)
     }));
+
+    // Calculate delivery charge
+    let deliveryCharge = 0;
+    if (manualDeliveryCharge !== undefined) {
+      // Use manually provided delivery charge
+      deliveryCharge = Number(manualDeliveryCharge);
+      if (isNaN(deliveryCharge) || deliveryCharge < 0) {
+        return res.status(400).json({ error: 'Invalid delivery charge' });
+      }
+    } else if (deliveryChoice && shippingAddress) {
+      // Automatically calculate delivery charge
+      const totalBoxes = formattedItems.reduce((sum, item) => sum + item.boxes, 0);
+      deliveryCharge = calculateDeliveryCharge(totalBoxes, deliveryChoice, shippingAddress.pinCode);
+    }
+
+    // Calculate total amount with delivery
+    const totalAmountWithDelivery = totalAmount + deliveryCharge;
 
     // Create new challan
     const challan = new Challan({
@@ -178,43 +303,36 @@ exports.generateChallan = async (req, res) => {
       mobileNo,
       items: formattedItems,
       totalAmount,
+      deliveryCharge, // New field
+      totalAmountWithDelivery, // New field
       receiverName,
-      dcNo: invoiceNo // Add this to resolve the unique index issue
+      dcNo: invoiceNo,
+      shippingAddress: shippingAddress || undefined, // Include shipping address if provided
+      deliveryChoice: deliveryChoice || undefined // Include delivery choice if provided
     });
 
     // Save the challan
-    // await challan.save();
-
     const savedChallan = await challan.save();
-
-    // res.json({
-    //   message: 'Challan generated successfully',
-    //   challan
-    // });
 
     res.json({
       message: 'Challan generated successfully',
       challan: savedChallan,
-      downloadUrl: `/api/dispatch/challan/${savedChallan._id}/download` // Add download URL
+      downloadUrl: `/api/dispatch/challan/${savedChallan._id}/download`
     });
   } catch (error) {
     console.error('Challan generation error:', error);
-    
-    // More detailed error handling
     if (error.code === 11000) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Duplicate challan generated',
         details: 'A challan with this number already exists'
       });
     }
-
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error generating challan',
-      details: error.message 
+      details: error.message
     });
   }
 };
-
 
 exports.getChallansByUserCode = async (req, res) => {
   try {
