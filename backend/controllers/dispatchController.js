@@ -625,7 +625,8 @@ exports.updateCODPaymentStatus = async (req, res) => {
         products: order.products.map(p => ({
           productName: p.product?.name || 'N/A',
           productType: p.product?.type || 'N/A',
-          quantity: Number(p.quantity),
+          boxes: Number(p.boxes) || 0,
+          // quantity: Number(p.quantity),
           price: Number(p.price)
         })),
         totalAmount: Number(order.totalAmount),
