@@ -78,29 +78,63 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+// exports.getProcessingOrders = async (req, res) => {
+//   try {
+//     const orders = await Order.find({
+//       orderStatus: { $in: ['processing', 'confirmed'] }
+//     })
+//     .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+//     .populate('products.product')
+//     .sort({ createdAt: -1 });
+
+//     // Format the response to ensure numeric values
+//     const formattedOrders = orders.map(order => ({
+//       ...order.toObject(),
+//       totalAmount: Number(order.totalAmount),
+//       deliveryCharge: Number(order.deliveryCharge || 0),
+//       totalAmountWithDelivery: Number(order.totalAmountWithDelivery)
+//     }));
+
+//     res.json({ orders: formattedOrders });
+//   } catch (error) {
+//     res.status(500).json({ error: 'Error fetching processing orders' });
+//   }
+// };
+
+
 exports.getProcessingOrders = async (req, res) => {
   try {
     const orders = await Order.find({
       orderStatus: { $in: ['processing', 'confirmed'] }
     })
-    .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
-    .populate('products.product')
-    .sort({ createdAt: -1 });
+      .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+      .populate('products.product')
+      .sort({ createdAt: -1 });
 
-    // Format the response to ensure numeric values
+    // Format the response to ensure numeric values and include boxes
     const formattedOrders = orders.map(order => ({
       ...order.toObject(),
-      totalAmount: Number(order.totalAmount),
+      totalAmount: Number(order.totalAmount) || 0,
       deliveryCharge: Number(order.deliveryCharge || 0),
-      totalAmountWithDelivery: Number(order.totalAmountWithDelivery)
+      totalAmountWithDelivery: Number(order.totalAmountWithDelivery) || 0,
+      products: order.products.map(p => ({
+        productId: p.product?._id || 'N/A',
+        productName: p.product?.name || 'N/A',
+        productType: p.product?.type || 'N/A',
+        boxes: Number(p.boxes) || 0, // Include boxes explicitly
+        price: Number(p.price) || 0
+      }))
     }));
 
     res.json({ orders: formattedOrders });
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching processing orders' });
+    console.error('Error fetching processing orders:', error);
+    res.status(500).json({
+      error: 'Error fetching processing orders',
+      details: error.message
+    });
   }
 };
-
 
 exports.downloadChallan = async (req, res) => {
   try {
