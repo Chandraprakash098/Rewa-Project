@@ -50,6 +50,7 @@ const { auth } = require('../middleware/auth');
 const userController = require('../controllers/userController');
 const cartController = require('../controllers/cartController');
 const paymentController = require('../controllers/paymentController');
+const upload = require('../config/multer');
 
 // Product Routes
 router.get('/products', auth, userController.getAllProducts);
@@ -63,11 +64,8 @@ router.delete('/cart/product', auth, cartController.removeFromCart);
 
 // Order & Payment Routes
 router.post('/create-order', auth, paymentController.createOrder); // Single entry point for order creation
-router.post('/verify-payment', auth, paymentController.verifyPayment);
-// router.post('/webhook', 
-//     express.raw({type: 'application/json'}),
-//     paymentController.webhook
-//   );
+// router.post('/verify-payment', auth, paymentController.verifyPayment);
+router.post('/submit-payment-details', auth, upload.single('screenshot'), paymentController.submitPaymentDetails);
 router.get('/orders/history', auth, userController.getOrderHistory);
 
 // Profile Routes

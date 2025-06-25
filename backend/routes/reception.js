@@ -70,6 +70,7 @@ const router = express.Router();
 const { auth, checkRole, authWithReception } = require("../middleware/auth");
 const upload = require("../config/multer");
 const receptionController = require("../controllers/receptionController");
+const paymentController = require("../controllers/paymentController");
 
 
 
@@ -93,12 +94,16 @@ router.post("/check-out", receptionController.checkOut);
 // router.use('/user-panel-access', auth, checkRole('reception'));
 router.post('/user-panel-access', receptionController.getUserPanelAccess);
 router.post("/miscellaneous-panel-access", receptionController.getMiscellaneousPanelAccess);
+router.get('/payments/submitted', receptionController.getSubmittedPayments);
+router.post('/payments/verify', paymentController.verifyPaymentByReception);
 
 // User panel routes with special authentication
 const userPanelRouter = express.Router();
 userPanelRouter.use(authWithReception);
 userPanelRouter.get('/products', receptionController.getUserProducts);
 userPanelRouter.post('/orders', receptionController.createOrderAsReception);
+
+
 
 // Mount user panel router
 router.use('/user-panel', userPanelRouter);
