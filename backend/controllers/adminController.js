@@ -456,7 +456,8 @@ const adminController = {
             update.quantity > 0
           )
           .map(update => ({
-            quantity: update.quantity,
+            // quantity: update.quantity,
+            quantity: update.boxes,
             date: update.updatedAt,
             updatedBy: {
               id: update.updatedBy?._id,
@@ -484,7 +485,8 @@ const adminController = {
           stockAdditionHistory: stockAdditions,
           totalAddedByStock,
           updateHistory: stock.updateHistory.map(update => ({
-            quantity: update.quantity,
+            // quantity: update.quantity,
+            quantity: update.boxes,
             updatedAt: update.updatedAt,
             updatedBy: {
               id: update.updatedBy?._id,
@@ -556,7 +558,8 @@ downloadFullStockHistory: async (req, res) => {
       { header: 'Last Updated', key: 'lastUpdated', width: 20 },
       { header: 'Last Updated By', key: 'lastUpdatedBy', width: 20 },
       { header: 'Update Date', key: 'updateDate', width: 20 },
-      { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
+      // { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
+      { header: 'Update Boxes', key: 'updateBoxes', width: 15 },
       { header: 'Change Type', key: 'changeType', width: 15 },
       { header: 'Updated By', key: 'updatedBy', width: 20 },
       { header: 'Stock Addition', key: 'stockAddition', width: 15 },
@@ -598,7 +601,8 @@ downloadFullStockHistory: async (req, res) => {
           lastUpdated: stock.lastUpdated.toLocaleString(),
           lastUpdatedBy: stock.updatedBy?.name || 'N/A',
           updateDate: update.updatedAt.toLocaleString(),
-          updateQuantity: update.quantity,
+          // updateQuantity: update.quantity,
+          updateBoxes: update.boxes,
           changeType: update.changeType,
           updatedBy: update.updatedBy?.name || 'N/A',
           stockAddition: isStockAddition ? update.quantity : '',  // Show only positive stock additions

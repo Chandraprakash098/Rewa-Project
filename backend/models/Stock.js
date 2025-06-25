@@ -49,7 +49,8 @@ stockSchema.methods.updateQuantity = function(newQuantity, userId, changeType, n
     this.quantity = newQuantity;
     
     this.updateHistory.push({
-        quantity: newQuantity,
+        // quantity: newQuantity,
+        boxes: changeBoxes,
         updatedAt: new Date(),
         updatedBy: userId,
         changeType: changeType,

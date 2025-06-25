@@ -481,6 +481,88 @@ class StockController {
         }
     }
 
+
+    // async updateQuantity(req, res) {
+    //     try {
+    //         const { productId, boxes, changeType, notes } = req.body;
+    //         const userId = req.user.id;
+    
+    //         const product = await Product.findById(productId);
+            
+    //         if (!product) {
+    //             return res.status(404).json({
+    //                 success: false,
+    //                 message: 'Product not found'
+    //             });
+    //         }
+    
+    //         // Calculate new boxes based on change type
+    //         let newBoxes = product.boxes;
+    //         if (changeType === 'addition') {
+    //             newBoxes += parseInt(boxes);
+    //         } else if (changeType === 'reduction') {
+    //             newBoxes -= parseInt(boxes);
+    //             if (newBoxes < 0) {
+    //                 return res.status(400).json({
+    //                     success: false,
+    //                     message: 'Insufficient stock boxes'
+    //                 });
+    //             }
+    //         } else {
+    //             newBoxes = parseInt(boxes);
+    //         }
+    
+    //         // Add remark to product
+    //         const remark = {
+    //             message: `Stock ${changeType}: ${boxes} boxes. ${notes || ''}`,
+    //             updatedBy: userId,
+    //             boxes: boxes,
+    //             changeType: changeType
+    //         };
+    
+    //         // Update product
+    //         await Product.findByIdAndUpdate(productId, {
+    //             $set: { boxes: newBoxes },
+    //             $push: { 
+    //                 stockRemarks: {
+    //                     $each: [remark],
+    //                     $position: 0  // Add new remarks at the beginning
+    //                 }
+    //             }
+    //         });
+    
+    //         // Record stock update history
+    //         let stockUpdate = await Stock.findOne({ productId });
+    //         if (!stockUpdate) {
+    //             stockUpdate = new Stock({
+    //                 productId,
+    //                 quantity: newBoxes,
+    //                 updatedBy: userId,
+    //                 updateHistory: []
+    //             });
+    //         }
+
+    //         // Update stock quantity using the model method
+    //         stockUpdate.updateQuantity(newBoxes, userId, changeType, notes, parseInt(boxes));
+    //         await stockUpdate.save();
+    
+    //         res.status(200).json({
+    //             success: true,
+    //             data: {
+    //                 product,
+    //                 stockUpdate
+    //             },
+    //             message: 'Stock boxes updated successfully'
+    //         });
+    //     } catch (error) {
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Error updating stock boxes',
+    //             error: error.message
+    //         });
+    //     }
+    // }
+
     // Get stock update history for a product
     async getStockHistory(req, res) {
         try {
