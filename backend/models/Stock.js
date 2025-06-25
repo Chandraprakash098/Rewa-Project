@@ -44,7 +44,7 @@ stockSchema.pre('save', function(next) {
 });
 
 // Method to update stock quantity
-stockSchema.methods.updateQuantity = function(newQuantity, userId, changeType, notes) {
+stockSchema.methods.updateQuantity = function(newQuantity, userId, changeType, notes,changeBoxes) {
     const oldQuantity = this.quantity;
     this.quantity = newQuantity;
     
