@@ -1553,7 +1553,8 @@ const paymentController = {
         gstNumber: user.customerDetails.gstNumber,
         paymentStatus: paymentMethod === 'COD' ? 'pending' : 'pending',
         orderStatus: 'pending',
-        userStatus: user.isActive ? 'active' : 'inactive'
+        userStatus: user.isActive ? 'active' : 'inactive',
+        
       });
 
       await order.save();
