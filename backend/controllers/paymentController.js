@@ -1267,63 +1267,121 @@ const paymentController = {
     }
   },
 
+  // verifyPaymentByReception: async (req, res) => {
+  //   try {
+  //     const { paymentId, verifiedAmount, verificationNotes } = req.body;
+  //     if (!paymentId || verifiedAmount === undefined) {
+  //       return res.status(400).json({
+  //         error: 'Payment ID and verified amount are required'
+  //       });
+  //     }
+
+  //     const payment = await Payment.findById(paymentId).populate('orderDetails');
+  //     if (!payment) {
+  //       return res.status(404).json({ error: 'Payment not found' });
+  //     }
+
+  //     if (payment.status !== 'submitted') {
+  //       return res.status(400).json({ error: 'Payment not in submitted state' });
+  //     }
+
+  //     if (!req.user.role === 'reception') {
+  //       return res.status(403).json({ error: 'Only receptionists can verify payments' });
+  //     }
+
+  //     const numericVerifiedAmount = Number(verifiedAmount);
+  //     if (isNaN(numericVerifiedAmount) || numericVerifiedAmount < 0) {
+  //       return res.status(400).json({ error: 'Invalid verified amount' });
+  //     }
+
+  //     payment.paidAmount += numericVerifiedAmount;
+  //     payment.verifiedBy = req.user._id;
+  //     payment.verificationNotes = verificationNotes || '';
+
+  //     if (payment.paidAmount >= payment.amount) {
+  //       payment.status = 'completed';
+  //       payment.orderDetails.paymentStatus = 'completed';
+  //       payment.orderDetails.orderStatus = isAhmedabadOrGandhinagar(payment.orderDetails.shippingAddress.pinCode) ? 'processing' : 'preview';
+  //     } else {
+  //       payment.status = 'pending';
+  //       payment.orderDetails.paymentStatus = 'pending';
+  //     }
+
+  //     await payment.save();
+  //     await payment.orderDetails.save();
+
+  //     res.status(200).json({
+  //       success: true,
+  //       message: `Payment ${payment.status === 'completed' ? 'fully' : 'partially'} verified`,
+  //       payment,
+  //       order: payment.orderDetails
+  //     });
+  //   } catch (error) {
+  //     console.error('Payment verification error:', error);
+  //     res.status(500).json({
+  //       error: 'Error verifying payment',
+  //       details: error.message
+  //     });
+  //   }
+  // }
+
   verifyPaymentByReception: async (req, res) => {
-    try {
-      const { paymentId, verifiedAmount, verificationNotes } = req.body;
-      if (!paymentId || verifiedAmount === undefined) {
-        return res.status(400).json({
-          error: 'Payment ID and verified amount are required'
-        });
-      }
-
-      const payment = await Payment.findById(paymentId).populate('orderDetails');
-      if (!payment) {
-        return res.status(404).json({ error: 'Payment not found' });
-      }
-
-      if (payment.status !== 'submitted') {
-        return res.status(400).json({ error: 'Payment not in submitted state' });
-      }
-
-      if (!req.user.role === 'reception') {
-        return res.status(403).json({ error: 'Only receptionists can verify payments' });
-      }
-
-      const numericVerifiedAmount = Number(verifiedAmount);
-      if (isNaN(numericVerifiedAmount) || numericVerifiedAmount < 0) {
-        return res.status(400).json({ error: 'Invalid verified amount' });
-      }
-
-      payment.paidAmount += numericVerifiedAmount;
-      payment.verifiedBy = req.user._id;
-      payment.verificationNotes = verificationNotes || '';
-
-      if (payment.paidAmount >= payment.amount) {
-        payment.status = 'completed';
-        payment.orderDetails.paymentStatus = 'completed';
-        payment.orderDetails.orderStatus = isAhmedabadOrGandhinagar(payment.orderDetails.shippingAddress.pinCode) ? 'processing' : 'preview';
-      } else {
-        payment.status = 'pending';
-        payment.orderDetails.paymentStatus = 'pending';
-      }
-
-      await payment.save();
-      await payment.orderDetails.save();
-
-      res.status(200).json({
-        success: true,
-        message: `Payment ${payment.status === 'completed' ? 'fully' : 'partially'} verified`,
-        payment,
-        order: payment.orderDetails
-      });
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      res.status(500).json({
-        error: 'Error verifying payment',
-        details: error.message
+  try {
+    const { paymentId, verifiedAmount, verificationNotes } = req.body;
+    if (!paymentId || verifiedAmount === undefined) {
+      return res.status(400).json({
+        error: 'Payment ID and verified amount are required'
       });
     }
+
+    const payment = await Payment.findById(paymentId).populate('orderDetails');
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    if (payment.status !== 'submitted') {
+      return res.status(400).json({ error: 'Payment not in submitted state' });
+    }
+
+    if (!req.user.role === 'reception') {
+      return res.status(403).json({ error: 'Only receptionists can verify payments' });
+    }
+
+    const numericVerifiedAmount = Number(verifiedAmount);
+    if (isNaN(numericVerifiedAmount) || numericVerifiedAmount < 0) {
+      return res.status(400).json({ error: 'Invalid verified amount' });
+    }
+
+    payment.paidAmount += numericVerifiedAmount;
+    payment.verifiedBy = req.user._id;
+    payment.verificationNotes = verificationNotes || '';
+
+    if (payment.paidAmount >= payment.amount) {
+      payment.status = 'completed';
+      payment.orderDetails.paymentStatus = 'completed';
+      payment.orderDetails.orderStatus = 'processing'; // Changed to 'processing' regardless of pin code
+    } else {
+      payment.status = 'pending';
+      payment.orderDetails.paymentStatus = 'pending';
+    }
+
+    await payment.save();
+    await payment.orderDetails.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Payment ${payment.status === 'completed' ? 'fully' : 'partially'} verified`,
+      payment,
+      order: payment.orderDetails
+    });
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({
+      error: 'Error verifying payment',
+      details: error.message
+    });
   }
+}
 };
 
 module.exports = paymentController;
