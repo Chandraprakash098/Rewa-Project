@@ -674,6 +674,105 @@ createOrderAsReception: async (req, res) => {
   },
 
   
+getPendingPayments : async (req, res) => {
+  try {
+    const pendingPayments = await Payment.find({ status: 'pending' })
+      .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+      .populate({
+        path: 'orderDetails',
+        populate: {
+          path: 'products.product',
+          select: 'name type'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    const formattedPayments = pendingPayments.map(payment => {
+      if (!payment.orderDetails) {
+        console.warn(`Payment ${payment._id} has no valid orderDetails`);
+        return {
+          paymentId: payment._id,
+          orderId: 'N/A',
+          user: {
+            name: payment.user?.name || 'N/A',
+            firmName: payment.user?.customerDetails?.firmName || 'N/A',
+            userCode: payment.user?.customerDetails?.userCode || 'N/A',
+            phoneNumber: payment.user?.phoneNumber || 'N/A',
+            email: payment.user?.email || 'N/A'
+          },
+          products: [],
+          totalAmount: Number(payment.amount) || 0,
+          paidAmount: Number(payment.paidAmount) || 0,
+          remainingAmount: Number(payment.remainingAmount) || 0,
+          paymentHistory: payment.paymentHistory.map(entry => ({
+            ...entry.toObject(),
+            submittedAmount: Number(entry.submittedAmount),
+            verifiedAmount: Number(entry.verifiedAmount)
+          })),
+          deliveryCharge: 0,
+          totalAmountWithDelivery: Number(payment.amount) || 0,
+          paymentMethod: 'N/A',
+          paymentStatus: payment.status,
+          orderStatus: 'N/A',
+          shippingAddress: {},
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          gstNumber: 'N/A',
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt
+        };
+      }
+
+      return {
+        paymentId: payment._id,
+        orderId: payment.orderDetails._id,
+        user: {
+          name: payment.user?.name || 'N/A',
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          userCode: payment.user?.customerDetails?.userCode || 'N/A',
+          phoneNumber: payment.user?.phoneNumber || 'N/A',
+          email: payment.user?.email || 'N/A'
+        },
+        products: payment.orderDetails.products.map(p => ({
+          productName: p.product?.name || 'N/A',
+          productType: p.product?.type || 'N/A',
+          boxes: Number(p.boxes) || 0,
+          price: Number(p.price) || 0
+        })),
+        totalAmount: Number(payment.amount) || 0,
+        paidAmount: Number(payment.paidAmount) || 0,
+        remainingAmount: Number(payment.remainingAmount) || 0,
+        paymentHistory: payment.paymentHistory.map(entry => ({
+          ...entry.toObject(),
+          submittedAmount: Number(entry.submittedAmount),
+          verifiedAmount: Number(entry.verifiedAmount)
+        })),
+        deliveryCharge: Number(payment.orderDetails.deliveryCharge || 0),
+        totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery) || 0,
+        paymentMethod: payment.orderDetails.paymentMethod,
+        paymentStatus: payment.orderDetails.paymentStatus,
+        orderStatus: payment.orderDetails.orderStatus,
+        shippingAddress: payment.orderDetails.shippingAddress,
+        firmName: payment.orderDetails.firmName,
+        gstNumber: payment.orderDetails.gstNumber || 'N/A',
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      };
+    });
+
+    res.json({
+      count: formattedPayments.length,
+      pendingPayments: formattedPayments
+    });
+  } catch (error) {
+    console.error('Error fetching pending payments:', error);
+    res.status(500).json({
+      error: 'Error fetching pending payments',
+      details: error.message
+    });
+  }
+},
+
+  
 
   updateOrderStatus: async (req, res) => {
     try {

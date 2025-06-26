@@ -108,4 +108,6 @@ userPanelRouter.post('/orders', receptionController.createOrderAsReception);
 // Mount user panel router
 router.use('/user-panel', userPanelRouter);
 
+router.get('/pending-payments', receptionController.getPendingPayments);
+
 module.exports = router;
