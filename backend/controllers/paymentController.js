@@ -1762,7 +1762,55 @@ const paymentController = {
         details: error.message
       });
     }
-  }
+  },
+
+
+  
+getPaymentDetails: async (req, res) => {
+    try {
+        const paymentId = req.params.paymentId;
+        const userId = req.user._id;
+
+        const payment = await Payment.findById(paymentId)
+            .populate('user', 'name email phoneNumber')
+            .populate('orderDetails');
+
+        if (!payment) {
+            return res.status(404).json({
+                error: 'Payment not found'
+            });
+        }
+
+        // Verify the payment belongs to the requesting user
+        if (payment.user._id.toString() !== userId.toString()) {
+            return res.status(403).json({
+                error: 'Unauthorized access to payment details'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            payment: {
+                _id: payment._id,
+                user: payment.user,
+                amount: payment.amount,
+                paidAmount: payment.paidAmount,
+                remainingAmount: payment.remainingAmount,
+                status: payment.status,
+                paymentHistory: payment.paymentHistory,
+                orderDetails: payment.orderDetails,
+                createdAt: payment.createdAt
+            }
+        });
+
+    } catch (error) {
+        console.error("Payment details error:", error);
+        res.status(500).json({
+            error: "Error fetching payment details",
+            details: error.message
+        });
+    }
+}
 };
 
 module.exports = paymentController;

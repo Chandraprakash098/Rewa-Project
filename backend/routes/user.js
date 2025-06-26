@@ -75,5 +75,7 @@ router.post('/profile/change-password', auth, userController.changePassword);
 
 
 router.get('/banners', auth, userController.getBanners);
+// In your routes file (probably routes/userRoutes.js or similar)
+router.get('/payments/:paymentId', auth, paymentController.getPaymentDetails);
 
 module.exports = router;
