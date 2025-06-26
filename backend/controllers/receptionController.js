@@ -996,14 +996,77 @@ getMiscellaneousPanelAccess: async (req, res) => {
   }
 },
 
-getSubmittedPayments: async (req, res) => {
+// getSubmittedPayments: async (req, res) => {
+//     try {
+//       const payments = await Payment.find({ status: 'submitted' })
+//         .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
+//         .populate('orderDetails', 'totalAmountWithDelivery paymentMethod shippingAddress')
+//         .sort({ createdAt: -1 });
+
+//       res.json({ payments });
+//     } catch (error) {
+//       console.error('Error fetching submitted payments:', error);
+//       res.status(500).json({
+//         error: 'Error fetching submitted payments',
+//         details: error.message
+//       });
+//     }
+//   }
+
+// getSubmittedPayments: async (req, res) => {
+//   try {
+//     const payments = await Payment.find({ status: 'submitted' })
+//       .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
+//       .populate('orderDetails', 'totalAmountWithDelivery paymentMethod shippingAddress')
+//       .sort({ createdAt: -1 });
+
+//     // Format payments to ensure numeric values and include remainingAmount
+//     const formattedPayments = payments.map(payment => ({
+//       ...payment.toObject(),
+//       amount: Number(payment.amount),
+//       paidAmount: Number(payment.paidAmount),
+//       remainingAmount: Number(payment.remainingAmount),
+//       orderDetails: {
+//         ...payment.orderDetails.toObject(),
+//         totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery)
+//       }
+//     }));
+
+//     res.json({ payments: formattedPayments });
+//   } catch (error) {
+//     console.error('Error fetching submitted payments:', error);
+//     res.status(500).json({
+//       error: 'Error fetching submitted payments',
+//       details: error.message
+//     });
+//   }
+// }
+
+
+ getSubmittedPayments: async (req, res) => {
     try {
       const payments = await Payment.find({ status: 'submitted' })
         .populate('user', 'name email phoneNumber customerDetails.firmName customerDetails.userCode')
         .populate('orderDetails', 'totalAmountWithDelivery paymentMethod shippingAddress')
         .sort({ createdAt: -1 });
 
-      res.json({ payments });
+      const formattedPayments = payments.map(payment => ({
+        ...payment.toObject(),
+        amount: Number(payment.amount),
+        paidAmount: Number(payment.paidAmount),
+        remainingAmount: Number(payment.remainingAmount),
+        paymentHistory: payment.paymentHistory.map(entry => ({
+          ...entry.toObject(),
+          submittedAmount: Number(entry.submittedAmount),
+          verifiedAmount: Number(entry.verifiedAmount)
+        })),
+        orderDetails: {
+          ...payment.orderDetails.toObject(),
+          totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery)
+        }
+      }));
+
+      res.json({ payments: formattedPayments });
     } catch (error) {
       console.error('Error fetching submitted payments:', error);
       res.status(500).json({
@@ -1012,9 +1075,6 @@ getSubmittedPayments: async (req, res) => {
       });
     }
   }
-
-
-
 
 
 };

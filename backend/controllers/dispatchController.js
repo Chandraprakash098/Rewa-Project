@@ -6,6 +6,7 @@ const Challan = require('../models/Challan');
 const generateChallanPDF = require('../utils/pdfgen');
 const streamifier = require('streamifier');
 const ExcelJS = require('exceljs');
+const Payment= require("../models/Payment");
 const { isAhmedabadOrGandhinagar, calculateDeliveryCharge } = require('./receptionController'); // Import helper functions
 
 //for Test
@@ -638,102 +639,445 @@ exports.updateCODPaymentStatus = async (req, res) => {
     });
   }
 }
-  exports.getPendingPayments = async (req, res) => {
-    try {
-      const pendingOrders = await Order.find({
-        paymentStatus: 'pending'
-      })
-        .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
-        .populate('products.product', 'name type')
-        .sort({ createdAt: -1 });
+  // exports.getPendingPayments = async (req, res) => {
+  //   try {
+  //     const pendingOrders = await Order.find({
+  //       paymentStatus: 'pending'
+  //     })
+  //       .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+  //       .populate('products.product', 'name type')
+  //       .sort({ createdAt: -1 });
   
-      const formattedOrders = pendingOrders.map(order => ({
-        orderId: order.orderId,
+  //     const formattedOrders = pendingOrders.map(order => ({
+  //       orderId: order.orderId,
+  //       user: {
+  //         name: order.user?.name || 'N/A',
+  //         firmName: order.user?.customerDetails?.firmName || 'N/A',
+  //         userCode: order.user?.customerDetails?.userCode || 'N/A',
+  //         phoneNumber: order.user?.phoneNumber || 'N/A',
+  //         email: order.user?.email || 'N/A'
+  //       },
+  //       products: order.products.map(p => ({
+  //         productName: p.product?.name || 'N/A',
+  //         productType: p.product?.type || 'N/A',
+  //         boxes: Number(p.boxes) || 0,
+  //         // quantity: Number(p.quantity),
+  //         price: Number(p.price)
+  //       })),
+  //       totalAmount: Number(order.totalAmount),
+  //       deliveryCharge: Number(order.deliveryCharge || 0),
+  //       totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
+  //       paymentMethod: order.paymentMethod,
+  //       paymentStatus: order.paymentStatus,
+  //       orderStatus: order.orderStatus,
+  //       shippingAddress: order.shippingAddress,
+  //       firmName: order.firmName,
+  //       gstNumber: order.gstNumber || 'N/A',
+  //       createdAt: order.createdAt,
+  //       updatedAt: order.updatedAt
+  //     }));
+  
+  //     res.json({
+  //       count: formattedOrders.length,
+  //       pendingPayments: formattedOrders
+  //     });
+  //   } catch (error) {
+  //     console.error('Error fetching pending payments:', error);
+  //     res.status(500).json({
+  //       error: 'Error fetching pending payments',
+  //       details: error.message
+  //     });
+  //   }
+//};
+
+// exports.getPendingPayments = async (req, res) => {
+//   try {
+//     const pendingPayments = await Payment.find({ status: 'pending' })
+//       .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+//       .populate({
+//         path: 'orderDetails',
+//         populate: {
+//           path: 'products.product',
+//           select: 'name type'
+//         }
+//       })
+//       .sort({ createdAt: -1 });
+
+//     const formattedPayments = pendingPayments.map(payment => {
+//       // Check if orderDetails is null or undefined
+//       if (!payment.orderDetails) {
+//         console.warn(`Payment ${payment._id} has no valid orderDetails`);
+//         return {
+//           paymentId: payment._id,
+//           orderId: 'N/A',
+//           user: {
+//             name: payment.user?.name || 'N/A',
+//             firmName: payment.user?.customerDetails?.firmName || 'N/A',
+//             userCode: payment.user?.customerDetails?.userCode || 'N/A',
+//             phoneNumber: payment.user?.phoneNumber || 'N/A',
+//             email: payment.user?.email || 'N/A'
+//           },
+//           products: [],
+//           totalAmount: Number(payment.amount) || 0,
+//           paidAmount: Number(payment.paidAmount) || 0,
+//           remainingAmount: Number(payment.remainingAmount) || 0,
+//           deliveryCharge: 0,
+//           totalAmountWithDelivery: Number(payment.amount) || 0,
+//           paymentMethod: 'N/A',
+//           paymentStatus: payment.status,
+//           orderStatus: 'N/A',
+//           shippingAddress: {},
+//           firmName: payment.user?.customerDetails?.firmName || 'N/A',
+//           gstNumber: 'N/A',
+//           createdAt: payment.createdAt,
+//           updatedAt: payment.updatedAt
+//         };
+//       }
+
+//       return {
+//         paymentId: payment._id,
+//         orderId: payment.orderDetails._id,
+//         user: {
+//           name: payment.user?.name || 'N/A',
+//           firmName: payment.user?.customerDetails?.firmName || 'N/A',
+//           userCode: payment.user?.customerDetails?.userCode || 'N/A',
+//           phoneNumber: payment.user?.phoneNumber || 'N/A',
+//           email: payment.user?.email || 'N/A'
+//         },
+//         products: payment.orderDetails.products.map(p => ({
+//           productName: p.product?.name || 'N/A',
+//           productType: p.product?.type || 'N/A',
+//           boxes: Number(p.boxes) || 0,
+//           price: Number(p.price) || 0
+//         })),
+//         totalAmount: Number(payment.amount) || 0,
+//         paidAmount: Number(payment.paidAmount) || 0,
+//         remainingAmount: Number(payment.remainingAmount) || 0,
+//         deliveryCharge: Number(payment.orderDetails.deliveryCharge || 0),
+//         totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery) || 0,
+//         paymentMethod: payment.orderDetails.paymentMethod,
+//         paymentStatus: payment.orderDetails.paymentStatus,
+//         orderStatus: payment.orderDetails.orderStatus,
+//         shippingAddress: payment.orderDetails.shippingAddress,
+//         firmName: payment.orderDetails.firmName,
+//         gstNumber: payment.orderDetails.gstNumber || 'N/A',
+//         createdAt: payment.createdAt,
+//         updatedAt: payment.updatedAt
+//       };
+//     });
+
+//     res.json({
+//       count: formattedPayments.length,
+//       pendingPayments: formattedPayments
+//     });
+//   } catch (error) {
+//     console.error('Error fetching pending payments:', error);
+//     res.status(500).json({
+//       error: 'Error fetching pending payments',
+//       details: error.message
+//     });
+//   }
+// };
+
+
+exports.getPendingPayments = async (req, res) => {
+  try {
+    const pendingPayments = await Payment.find({ status: 'pending' })
+      .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+      .populate({
+        path: 'orderDetails',
+        populate: {
+          path: 'products.product',
+          select: 'name type'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    const formattedPayments = pendingPayments.map(payment => {
+      if (!payment.orderDetails) {
+        console.warn(`Payment ${payment._id} has no valid orderDetails`);
+        return {
+          paymentId: payment._id,
+          orderId: 'N/A',
+          user: {
+            name: payment.user?.name || 'N/A',
+            firmName: payment.user?.customerDetails?.firmName || 'N/A',
+            userCode: payment.user?.customerDetails?.userCode || 'N/A',
+            phoneNumber: payment.user?.phoneNumber || 'N/A',
+            email: payment.user?.email || 'N/A'
+          },
+          products: [],
+          totalAmount: Number(payment.amount) || 0,
+          paidAmount: Number(payment.paidAmount) || 0,
+          remainingAmount: Number(payment.remainingAmount) || 0,
+          paymentHistory: payment.paymentHistory.map(entry => ({
+            ...entry.toObject(),
+            submittedAmount: Number(entry.submittedAmount),
+            verifiedAmount: Number(entry.verifiedAmount)
+          })),
+          deliveryCharge: 0,
+          totalAmountWithDelivery: Number(payment.amount) || 0,
+          paymentMethod: 'N/A',
+          paymentStatus: payment.status,
+          orderStatus: 'N/A',
+          shippingAddress: {},
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          gstNumber: 'N/A',
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt
+        };
+      }
+
+      return {
+        paymentId: payment._id,
+        orderId: payment.orderDetails._id,
         user: {
-          name: order.user?.name || 'N/A',
-          firmName: order.user?.customerDetails?.firmName || 'N/A',
-          userCode: order.user?.customerDetails?.userCode || 'N/A',
-          phoneNumber: order.user?.phoneNumber || 'N/A',
-          email: order.user?.email || 'N/A'
+          name: payment.user?.name || 'N/A',
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          userCode: payment.user?.customerDetails?.userCode || 'N/A',
+          phoneNumber: payment.user?.phoneNumber || 'N/A',
+          email: payment.user?.email || 'N/A'
         },
-        products: order.products.map(p => ({
+        products: payment.orderDetails.products.map(p => ({
           productName: p.product?.name || 'N/A',
           productType: p.product?.type || 'N/A',
           boxes: Number(p.boxes) || 0,
-          // quantity: Number(p.quantity),
-          price: Number(p.price)
+          price: Number(p.price) || 0
         })),
-        totalAmount: Number(order.totalAmount),
-        deliveryCharge: Number(order.deliveryCharge || 0),
-        totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        orderStatus: order.orderStatus,
-        shippingAddress: order.shippingAddress,
-        firmName: order.firmName,
-        gstNumber: order.gstNumber || 'N/A',
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt
-      }));
-  
-      res.json({
-        count: formattedOrders.length,
-        pendingPayments: formattedOrders
-      });
-    } catch (error) {
-      console.error('Error fetching pending payments:', error);
-      res.status(500).json({
-        error: 'Error fetching pending payments',
-        details: error.message
-      });
-    }
+        totalAmount: Number(payment.amount) || 0,
+        paidAmount: Number(payment.paidAmount) || 0,
+        remainingAmount: Number(payment.remainingAmount) || 0,
+        paymentHistory: payment.paymentHistory.map(entry => ({
+          ...entry.toObject(),
+          submittedAmount: Number(entry.submittedAmount),
+          verifiedAmount: Number(entry.verifiedAmount)
+        })),
+        deliveryCharge: Number(payment.orderDetails.deliveryCharge || 0),
+        totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery) || 0,
+        paymentMethod: payment.orderDetails.paymentMethod,
+        paymentStatus: payment.orderDetails.paymentStatus,
+        orderStatus: payment.orderDetails.orderStatus,
+        shippingAddress: payment.orderDetails.shippingAddress,
+        firmName: payment.orderDetails.firmName,
+        gstNumber: payment.orderDetails.gstNumber || 'N/A',
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      };
+    });
+
+    res.json({
+      count: formattedPayments.length,
+      pendingPayments: formattedPayments
+    });
+  } catch (error) {
+    console.error('Error fetching pending payments:', error);
+    res.status(500).json({
+      error: 'Error fetching pending payments',
+      details: error.message
+    });
+  }
 };
 
+// exports.downloadPendingPaymentsExcel = async (req, res) => {
+//   try {
+//     const pendingOrders = await Order.find({
+//       paymentStatus: 'pending'
+//     })
+//       .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
+//       .populate('products.product', 'name type')
+//       .sort({ createdAt: -1 });
 
+//     const formattedOrders = pendingOrders.map(order => ({
+//       orderId: order.orderId,
+//       user: {
+//         name: order.user?.name || 'N/A',
+//         firmName: order.user?.customerDetails?.firmName || 'N/A',
+//         userCode: order.user?.customerDetails?.userCode || 'N/A',
+//         phoneNumber: order.user?.phoneNumber || 'N/A',
+//         email: order.user?.email || 'N/A'
+//       },
+//       products: order.products.map(p => ({
+//         productName: p.product?.name || 'N/A',
+//         productType: p.product?.type || 'N/A',
+//         quantity: Number(p.quantity),
+//         price: Number(p.price)
+//       })),
+//       totalAmount: Number(order.totalAmount),
+//       deliveryCharge: Number(order.deliveryCharge || 0),
+//       totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
+//       paymentMethod: order.paymentMethod,
+//       paymentStatus: order.paymentStatus,
+//       orderStatus: order.orderStatus,
+//       shippingAddress: order.shippingAddress,
+//       firmName: order.firmName,
+//       gstNumber: order.gstNumber || 'N/A',
+//       createdAt: order.createdAt,
+//       updatedAt: order.updatedAt
+//     }));
+
+//     // Create a new Excel workbook and worksheet
+//     const workbook = new ExcelJS.Workbook();
+//     const worksheet = workbook.addWorksheet('Pending Payments');
+
+//     // Define columns
+//     worksheet.columns = [
+//       { header: 'Order ID', key: 'orderId', width: 15 },
+//       { header: 'Customer Name', key: 'customerName', width: 20 },
+//       { header: 'Firm Name', key: 'firmName', width: 20 },
+//       { header: 'User Code', key: 'userCode', width: 15 },
+//       { header: 'Phone Number', key: 'phoneNumber', width: 15 },
+//       { header: 'Email', key: 'email', width: 25 },
+//       { header: 'Products', key: 'products', width: 30 },
+//       { header: 'Total Amount', key: 'totalAmount', width: 15 },
+//       { header: 'Delivery Charge', key: 'deliveryCharge', width: 15 },
+//       { header: 'Total with Delivery', key: 'totalAmountWithDelivery', width: 20 },
+//       { header: 'Payment Method', key: 'paymentMethod', width: 15 },
+//       { header: 'Payment Status', key: 'paymentStatus', width: 15 },
+//       { header: 'Order Status', key: 'orderStatus', width: 15 },
+//       { header: 'Shipping Address', key: 'shippingAddress', width: 30 },
+//       { header: 'GST Number', key: 'gstNumber', width: 15 },
+//       { header: 'Created At', key: 'createdAt', width: 20 },
+//       { header: 'Updated At', key: 'updatedAt', width: 20 }
+//     ];
+
+//     // Add rows
+//     formattedOrders.forEach(order => {
+//       worksheet.addRow({
+//         orderId: order.orderId,
+//         customerName: order.user.name,
+//         firmName: order.user.firmName,
+//         userCode: order.user.userCode,
+//         phoneNumber: order.user.phoneNumber,
+//         email: order.user.email,
+//         products: order.products.map(p => `${p.productName} (${p.quantity})`).join(', '),
+//         totalAmount: order.totalAmount,
+//         deliveryCharge: order.deliveryCharge,
+//         totalAmountWithDelivery: order.totalAmountWithDelivery,
+//         paymentMethod: order.paymentMethod,
+//         paymentStatus: order.paymentStatus,
+//         orderStatus: order.orderStatus,
+//         shippingAddress: order.shippingAddress,
+//         gstNumber: order.gstNumber,
+//         createdAt: order.createdAt.toISOString(),
+//         updatedAt: order.updatedAt.toISOString()
+//       });
+//     });
+
+//     // Style the header row
+//     worksheet.getRow(1).font = { bold: true };
+//     worksheet.getRow(1).fill = {
+//       type: 'pattern',
+//       pattern: 'solid',
+//       fgColor: { argb: 'D3D3D3' }
+//     };
+
+//     // Set response headers for Excel download
+//     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+//     res.setHeader('Content-Disposition', 'attachment; filename=pending_payments.xlsx');
+
+//     // Write the workbook to the response
+//     await workbook.xlsx.write(res);
+
+//     // End the response
+//     res.end();
+//   } catch (error) {
+//     console.error('Error generating Excel file:', error);
+//     res.status(500).json({
+//       error: 'Error generating Excel file',
+//       details: error.message
+//     });
+//   }
 
 exports.downloadPendingPaymentsExcel = async (req, res) => {
   try {
-    const pendingOrders = await Order.find({
-      paymentStatus: 'pending'
-    })
+    const pendingPayments = await Payment.find({ status: 'pending' })
       .populate('user', 'name phoneNumber email customerDetails.firmName customerDetails.userCode')
-      .populate('products.product', 'name type')
+      .populate({
+        path: 'orderDetails',
+        populate: {
+          path: 'products.product',
+          select: 'name type'
+        }
+      })
       .sort({ createdAt: -1 });
 
-    const formattedOrders = pendingOrders.map(order => ({
-      orderId: order.orderId,
-      user: {
-        name: order.user?.name || 'N/A',
-        firmName: order.user?.customerDetails?.firmName || 'N/A',
-        userCode: order.user?.customerDetails?.userCode || 'N/A',
-        phoneNumber: order.user?.phoneNumber || 'N/A',
-        email: order.user?.email || 'N/A'
-      },
-      products: order.products.map(p => ({
-        productName: p.product?.name || 'N/A',
-        productType: p.product?.type || 'N/A',
-        quantity: Number(p.quantity),
-        price: Number(p.price)
-      })),
-      totalAmount: Number(order.totalAmount),
-      deliveryCharge: Number(order.deliveryCharge || 0),
-      totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
-      paymentMethod: order.paymentMethod,
-      paymentStatus: order.paymentStatus,
-      orderStatus: order.orderStatus,
-      shippingAddress: order.shippingAddress,
-      firmName: order.firmName,
-      gstNumber: order.gstNumber || 'N/A',
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
-    }));
+    const formattedPayments = pendingPayments.map(payment => {
+      if (!payment.orderDetails) {
+        console.warn(`Payment ${payment._id} has no valid orderDetails`);
+        return {
+          paymentId: payment._id,
+          orderId: 'N/A',
+          user: {
+            name: payment.user?.name || 'N/A',
+            firmName: payment.user?.customerDetails?.firmName || 'N/A',
+            userCode: payment.user?.customerDetails?.userCode || 'N/A',
+            phoneNumber: payment.user?.phoneNumber || 'N/A',
+            email: payment.user?.email || 'N/A'
+          },
+          products: [],
+          totalAmount: Number(payment.amount) || 0,
+          paidAmount: Number(payment.paidAmount) || 0,
+          remainingAmount: Number(payment.remainingAmount) || 0,
+          paymentHistory: payment.paymentHistory.map(entry => ({
+            ...entry.toObject(),
+            submittedAmount: Number(entry.submittedAmount),
+            verifiedAmount: Number(entry.verifiedAmount)
+          })),
+          deliveryCharge: 0,
+          totalAmountWithDelivery: Number(payment.amount) || 0,
+          paymentMethod: 'N/A',
+          paymentStatus: payment.status,
+          orderStatus: 'N/A',
+          shippingAddress: {},
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          gstNumber: 'N/A',
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt
+        };
+      }
 
-    // Create a new Excel workbook and worksheet
+      return {
+        paymentId: payment._id,
+        orderId: payment.orderDetails._id,
+        user: {
+          name: payment.user?.name || 'N/A',
+          firmName: payment.user?.customerDetails?.firmName || 'N/A',
+          userCode: payment.user?.customerDetails?.userCode || 'N/A',
+          phoneNumber: payment.user?.phoneNumber || 'N/A',
+          email: payment.user?.email || 'N/A'
+        },
+        products: payment.orderDetails.products.map(p => ({
+          productName: p.product?.name || 'N/A',
+          productType: p.product?.type || 'N/A',
+          boxes: Number(p.boxes) || 0,
+          price: Number(p.price) || 0
+        })),
+        totalAmount: Number(payment.amount) || 0,
+        paidAmount: Number(payment.paidAmount) || 0,
+        remainingAmount: Number(payment.remainingAmount) || 0,
+        paymentHistory: payment.paymentHistory.map(entry => ({
+          ...entry.toObject(),
+          submittedAmount: Number(entry.submittedAmount),
+          verifiedAmount: Number(entry.verifiedAmount)
+        })),
+        deliveryCharge: Number(payment.orderDetails.deliveryCharge || 0),
+        totalAmountWithDelivery: Number(payment.orderDetails.totalAmountWithDelivery) || 0,
+        paymentMethod: payment.orderDetails.paymentMethod,
+        paymentStatus: payment.orderDetails.paymentStatus,
+        orderStatus: payment.orderDetails.orderStatus,
+        shippingAddress: payment.orderDetails.shippingAddress,
+        firmName: payment.orderDetails.firmName,
+        gstNumber: payment.orderDetails.gstNumber || 'N/A',
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      };
+    });
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Pending Payments');
 
-    // Define columns
     worksheet.columns = [
+      { header: 'Payment ID', key: 'paymentId', width: 15 },
       { header: 'Order ID', key: 'orderId', width: 15 },
       { header: 'Customer Name', key: 'customerName', width: 20 },
       { header: 'Firm Name', key: 'firmName', width: 20 },
@@ -742,6 +1086,9 @@ exports.downloadPendingPaymentsExcel = async (req, res) => {
       { header: 'Email', key: 'email', width: 25 },
       { header: 'Products', key: 'products', width: 30 },
       { header: 'Total Amount', key: 'totalAmount', width: 15 },
+      { header: 'Paid Amount', key: 'paidAmount', width: 15 },
+      { header: 'Remaining Amount', key: 'remainingAmount', width: 15 },
+      { header: 'Payment History', key: 'paymentHistory', width: 50 },
       { header: 'Delivery Charge', key: 'deliveryCharge', width: 15 },
       { header: 'Total with Delivery', key: 'totalAmountWithDelivery', width: 20 },
       { header: 'Payment Method', key: 'paymentMethod', width: 15 },
@@ -753,30 +1100,39 @@ exports.downloadPendingPaymentsExcel = async (req, res) => {
       { header: 'Updated At', key: 'updatedAt', width: 20 }
     ];
 
-    // Add rows
-    formattedOrders.forEach(order => {
+    formattedPayments.forEach(payment => {
       worksheet.addRow({
-        orderId: order.orderId,
-        customerName: order.user.name,
-        firmName: order.user.firmName,
-        userCode: order.user.userCode,
-        phoneNumber: order.user.phoneNumber,
-        email: order.user.email,
-        products: order.products.map(p => `${p.productName} (${p.quantity})`).join(', '),
-        totalAmount: order.totalAmount,
-        deliveryCharge: order.deliveryCharge,
-        totalAmountWithDelivery: order.totalAmountWithDelivery,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        orderStatus: order.orderStatus,
-        shippingAddress: order.shippingAddress,
-        gstNumber: order.gstNumber,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString()
+        paymentId: payment.paymentId,
+        orderId: payment.orderId,
+        customerName: payment.user.name,
+        firmName: payment.user.firmName,
+        userCode: payment.user.userCode,
+        phoneNumber: payment.user.phoneNumber,
+        email: payment.user.email,
+        products: payment.products.map(p => `${p.productName} (${p.boxes})`).join(', '),
+        totalAmount: payment.totalAmount,
+        paidAmount: payment.paidAmount,
+        remainingAmount: payment.remainingAmount,
+        paymentHistory: JSON.stringify(payment.paymentHistory.map(entry => ({
+          referenceId: entry.referenceId,
+          submittedAmount: entry.submittedAmount,
+          status: entry.status,
+          verifiedAmount: entry.verifiedAmount,
+          submissionDate: entry.submissionDate,
+          verificationDate: entry.verificationDate
+        }))),
+        deliveryCharge: payment.deliveryCharge,
+        totalAmountWithDelivery: payment.totalAmountWithDelivery,
+        paymentMethod: payment.paymentMethod,
+        paymentStatus: payment.paymentStatus,
+        orderStatus: payment.orderStatus,
+        shippingAddress: JSON.stringify(payment.shippingAddress),
+        gstNumber: payment.gstNumber,
+        createdAt: payment.createdAt.toISOString(),
+        updatedAt: payment.updatedAt.toISOString()
       });
     });
 
-    // Style the header row
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
       type: 'pattern',
@@ -784,14 +1140,10 @@ exports.downloadPendingPaymentsExcel = async (req, res) => {
       fgColor: { argb: 'D3D3D3' }
     };
 
-    // Set response headers for Excel download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=pending_payments.xlsx');
 
-    // Write the workbook to the response
     await workbook.xlsx.write(res);
-
-    // End the response
     res.end();
   } catch (error) {
     console.error('Error generating Excel file:', error);
