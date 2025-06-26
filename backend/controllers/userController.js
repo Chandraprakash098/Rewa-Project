@@ -115,50 +115,51 @@ getAllProducts: async (req, res) => {
     }
   },
 
-  // getOrderHistory: async (req, res) => {
-  //   try {
-  //     const orders = await Order.find({ user: req.user._id })
-  //       .populate("products.product", "name price image")
-  //       .sort({ createdAt: -1 });
-  //     res.json({ orders });
-  //   } catch (error) {
-  //     res.status(500).json({ error: "Error fetching order history" });
-  //   }
-  // },
-
-   getOrderHistory: async (req, res) => {
+  getOrderHistory: async (req, res) => {
     try {
-      const userId = req.user._id;
-
-      const orders = await Order.find({ user: userId })
-        .populate('products.product', 'name image isOffer')
-        .populate({
-          path: 'paymentDetails',
-          model: 'Payment',
-          select: '_id user amount paidAmount remainingAmount status paymentHistory orderDetails createdAt',
-          populate: {
-            path: 'user',
-            select: 'name email phoneNumber'
-          }
-        })
+      const orders = await Order.find({ user: req.user._id })
+        .populate("products.product", "name price image")
         .sort({ createdAt: -1 });
-
-      res.status(200).json({
-        success: true,
-        orders: orders.map(order => ({
-          ...order.toObject(),
-          orderId: order.orderId,
-          paymentDetails: order.paymentDetails || null
-        }))
-      });
+      res.json({ orders });
     } catch (error) {
-      console.error('Order history error:', error);
-      res.status(500).json({
-        error: 'Error fetching order history',
-        details: error.message
-      });
+      res.status(500).json({ error: "Error fetching order history" });
     }
   },
+
+  //  getOrderHistory: async (req, res) => {
+  //   try {
+  //     const userId = req.user._id;
+
+  //     const orders = await Order.find({ user: userId })
+  //       .populate('products.product', 'name image isOffer')
+  //       .populate({
+  //         // path: 'paymentDetails',
+  //         model: 'Payment',
+  //         select: '_id user amount paidAmount remainingAmount status paymentHistory orderDetails createdAt',
+  //         populate: {
+  //           path: 'user',
+  //           select: 'name email phoneNumber'
+  //         },
+  //         options: { strictPopulate: false }
+  //       })
+  //       .sort({ createdAt: -1 });
+
+  //     res.status(200).json({
+  //       success: true,
+  //       orders: orders.map(order => ({
+  //         ...order.toObject(),
+  //         orderId: order.orderId,
+  //         paymentDetails: order.paymentDetails || null
+  //       }))
+  //     });
+  //   } catch (error) {
+  //     console.error('Order history error:', error);
+  //     res.status(500).json({
+  //       error: 'Error fetching order history',
+  //       details: error.message
+  //     });
+  //   }
+  // },
 
   // Profile Management
   updateProfile: async (req, res) => {
