@@ -5,6 +5,7 @@ const Cart = require("../models/Cart");
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Banner = require("../models/Banner");
+const Payment= require("../models/Payment");
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -115,51 +116,56 @@ getAllProducts: async (req, res) => {
     }
   },
 
-  getOrderHistory: async (req, res) => {
-    try {
-      const orders = await Order.find({ user: req.user._id })
-        .populate("products.product", "name price image")
-        .sort({ createdAt: -1 });
-      res.json({ orders });
-    } catch (error) {
-      res.status(500).json({ error: "Error fetching order history" });
-    }
-  },
-
-  //  getOrderHistory: async (req, res) => {
+  // getOrderHistory: async (req, res) => {
   //   try {
-  //     const userId = req.user._id;
-
-  //     const orders = await Order.find({ user: userId })
-  //       .populate('products.product', 'name image isOffer')
-  //       .populate({
-  //         // path: 'paymentDetails',
-  //         model: 'Payment',
-  //         select: '_id user amount paidAmount remainingAmount status paymentHistory orderDetails createdAt',
-  //         populate: {
-  //           path: 'user',
-  //           select: 'name email phoneNumber'
-  //         },
-  //         options: { strictPopulate: false }
-  //       })
+  //     const orders = await Order.find({ user: req.user._id })
+  //       .populate("products.product", "name price image")
   //       .sort({ createdAt: -1 });
-
-  //     res.status(200).json({
-  //       success: true,
-  //       orders: orders.map(order => ({
-  //         ...order.toObject(),
-  //         orderId: order.orderId,
-  //         paymentDetails: order.paymentDetails || null
-  //       }))
-  //     });
+  //     res.json({ orders });
   //   } catch (error) {
-  //     console.error('Order history error:', error);
-  //     res.status(500).json({
-  //       error: 'Error fetching order history',
-  //       details: error.message
-  //     });
+  //     res.status(500).json({ error: "Error fetching order history" });
   //   }
   // },
+
+
+  getOrderHistory: async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .populate("products.product", "name price image")
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() for better performance
+
+    // Fetch payment details for each order
+    const ordersWithPayments = await Promise.all(
+      orders.map(async (order) => {
+        const payment = await Payment.findOne({ orderDetails: order._id })
+          .populate('user', 'name email phoneNumber')
+          .lean();
+        return {
+          ...order,
+          paymentDetails: payment ? {
+            _id: payment._id,
+            user: payment.user,
+            amount: payment.amount,
+            paidAmount: payment.paidAmount,
+            remainingAmount: payment.remainingAmount,
+            status: payment.status,
+            paymentHistory: payment.paymentHistory,
+            orderDetails: payment.orderDetails,
+            userActivityStatus: payment.userActivityStatus,
+            createdAt: payment.createdAt
+          } : null
+        };
+      })
+    );
+
+    res.json({ orders: ordersWithPayments });
+  } catch (error) {
+    console.error('Error fetching order history:', error);
+    res.status(500).json({ error: "Error fetching order history" });
+  }
+},
+  
 
   // Profile Management
   updateProfile: async (req, res) => {
