@@ -10,6 +10,7 @@ const ExcelJS = require('exceljs');
 const Stock = require('../models/Stock')
 // const passwordCache = new Map();
 const Banner = require('../models/Banner');
+const Payment = require('../models/Payment');
 
 const adminController = {
   getAllStaff: async (req, res) => {
@@ -240,83 +241,7 @@ const adminController = {
 
 
 
-  // createProduct: async (req, res) => {
-  //   try {
-  //     const {
-  //       name,
-  //       type,
-  //       category,
-  //       description,
-  //       originalPrice,
-  //       discountedPrice,
-  //       quantity,
-  //       validFrom,
-  //       validTo
-  //     } = req.body;
   
-  //     // Validate category based on type
-  //     const validCategories = Product.getCategoriesByType(type);
-  //     if (!validCategories.includes(category)) {
-  //       return res.status(400).json({
-  //         error: `Invalid category for ${type}. Valid categories are: ${validCategories.join(', ')}`
-  //       });
-  //     }
-  
-  //     // Validate offer dates if discount is provided
-  //     if (discountedPrice) {
-  //       if (!validFrom || !validTo) {
-  //         return res.status(400).json({
-  //           error: 'validFrom and validTo dates are required when setting a discounted price'
-  //         });
-  //       }
-  
-  //       const fromDate = new Date(validFrom);
-  //       const toDate = new Date(validTo);
-  //       const now = new Date();
-  
-  //       if (fromDate > toDate) {
-  //         return res.status(400).json({
-  //           error: 'validTo date must be after validFrom date'
-  //         });
-  //       }
-  //     }
-  
-  //     let imageUrl = null;
-  
-  //     if (req.file) {
-  //       // Convert buffer to base64
-  //       const b64 = req.file.buffer.toString('base64');
-  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-  
-  //       const result = await cloudinary.uploader.upload(dataURI, {
-  //         folder: 'products',
-  //         resource_type: 'auto'
-  //       });
-  
-  //       imageUrl = result.secure_url;
-  //     }
-  
-  //     const product = new Product({
-  //       name,
-  //       type,
-  //       category,
-  //       description,
-  //       originalPrice: Number(originalPrice),
-  //       discountedPrice: discountedPrice ? Number(discountedPrice) : null,
-  //       quantity,
-  //       image: imageUrl,
-  //       validFrom: validFrom || null,
-  //       validTo: validTo || null
-  //     });
-  
-  //     await product.save();
-  //     res.status(201).json({ product });
-  //   } catch (error) {
-  //     console.error('Error creating product:', error);
-  //     res.status(500).json({ error: error.message || 'Error creating product' });
-  //   }
-  // },
-
 
   createProduct: async (req, res) => {
     try {
@@ -619,139 +544,6 @@ const adminController = {
     },
 
 
-// downloadFullStockHistory: async (req, res) => {
-//   try {
-//     const { startDate, endDate, productId } = req.query;
-    
-//     let query = {};
-    
-//     if (startDate && endDate) {
-//       query['updateHistory.updatedAt'] = {
-//         $gte: new Date(startDate),
-//         $lte: new Date(endDate)
-//       };
-//     }
-
-//     if (productId) {
-//       query.productId = productId;
-//     }
-
-//     const stockHistory = await Stock.find(query)
-//       .populate('productId', 'name description')
-//       .populate('updatedBy', 'name email role')
-//       .populate('updateHistory.updatedBy', 'name email role')
-//       .sort({ 'updateHistory.updatedAt': -1 });
-
-//     const workbook = new ExcelJS.Workbook();
-//     const worksheet = workbook.addWorksheet('Stock History');
-
-//     // Define column headers
-//     worksheet.columns = [
-//       { header: 'Product ID', key: 'productId', width: 25 },
-//       { header: 'Product Name', key: 'productName', width: 20 },
-//       { header: 'Description', key: 'productDescription', width: 30 },
-//       { header: 'Current Quantity', key: 'currentQuantity', width: 15 },
-//       { header: 'Last Updated', key: 'lastUpdated', width: 20 },
-//       { header: 'Last Updated By', key: 'lastUpdatedBy', width: 20 },
-//       { header: 'Update Date', key: 'updateDate', width: 20 },
-//       // { header: 'Update Quantity', key: 'updateQuantity', width: 15 },
-//       { header: 'Update Boxes', key: 'updateBoxes', width: 15 },
-//       { header: 'Change Type', key: 'changeType', width: 15 },
-//       { header: 'Updated By', key: 'updatedBy', width: 20 },
-//       { header: 'Stock Addition', key: 'stockAddition', width: 15 },
-//       { header: 'Total Added by Stock', key: 'totalAddedByStock', width: 20 },
-//       { header: 'Notes', key: 'notes', width: 30 }
-//     ];
-
-//     // Style the header row
-//     worksheet.getRow(1).font = { bold: true };
-//     worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-//     worksheet.getRow(1).fill = {
-//       type: 'pattern',
-//       pattern: 'solid',
-//       fgColor: { argb: 'FFDDDDDD' }
-//     };
-
-//     // Add data to the worksheet
-//     stockHistory.forEach(stock => {
-//       // Calculate total added by stock for this product once
-//       const totalAddedByStock = stock.updateHistory
-//         .filter(update => 
-//           update.updatedBy?.role === 'stock' && 
-//           update.changeType === 'addition' && 
-//           update.quantity > 0
-//         )
-//         .reduce((sum, update) => sum + (update.quantity || 0), 0);
-
-//       // Add each update history row with the same totalAddedByStock
-//       stock.updateHistory.forEach(update => {
-//         const isStockAddition = update.updatedBy?.role === 'stock' && 
-//                               update.changeType === 'addition' && 
-//                               update.quantity > 0;
-
-//         worksheet.addRow({
-//           productId: stock.productId._id.toString(),
-//           productName: stock.productId.name,
-//           productDescription: stock.productId.description,
-//           currentQuantity: stock.quantity,
-//           lastUpdated: stock.lastUpdated.toLocaleString(),
-//           lastUpdatedBy: stock.updatedBy?.name || 'N/A',
-//           updateDate: update.updatedAt.toLocaleString(),
-//           // updateQuantity: update.quantity,
-//           updateBoxes: update.boxes,
-//           changeType: update.changeType,
-//           updatedBy: update.updatedBy?.name || 'N/A',
-//           stockAddition: isStockAddition ? update.quantity : '',  // Show only positive stock additions
-//           totalAddedByStock: totalAddedByStock || 0,  // Show total for every row of this product
-//           notes: update.notes || 'N/A'
-//         });
-//       });
-//     });
-
-//     // Add a summary row at the bottom
-//     const totalStockAddedAcrossAll = stockHistory.reduce((sum, stock) => {
-//       const stockTotal = stock.updateHistory
-//         .filter(update => 
-//           update.updatedBy?.role === 'stock' && 
-//           update.changeType === 'addition' && 
-//           update.quantity > 0
-//         )
-//         .reduce((subSum, update) => subSum + (update.quantity || 0), 0);
-//       return sum + stockTotal;
-//     }, 0);
-
-//     worksheet.addRow({
-//       productId: 'Summary',
-//       totalAddedByStock: totalStockAddedAcrossAll
-//     });
-
-//     // Style the summary row
-//     const lastRow = worksheet.lastRow;
-//     lastRow.font = { bold: true };
-//     lastRow.fill = {
-//       type: 'pattern',
-//       pattern: 'solid',
-//       fgColor: { argb: 'FFFFDDDD' }
-//     };
-
-//     // Set response headers for file download
-//     res.setHeader(
-//       'Content-Type',
-//       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//     );
-//     res.setHeader(
-//       'Content-Disposition',
-//       'attachment; filename="Full_Stock_History.xlsx"'
-//     );
-
-//     // Write the workbook to the response stream
-//     await workbook.xlsx.write(res);
-//     res.end();
-//   } catch (error) {
-//     console.error('Error generating stock history Excel:', error);
-//     res.status(500).json({ error: 'Error generating stock history Excel file' });
-//   }
-// },
 
 
 downloadFullStockHistory: async (req, res) => {
@@ -1091,80 +883,212 @@ getAllProducts: async (req, res) => {
   // },
 
 
+  // updateProduct: async (req, res) => {
+  //   try {
+  //     const updates = {
+  //       ...req.body,
+  //       originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
+  //       // discountedPrice: req.body.discountedPrice ? Number(req.body)  : null,
+  //       discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null,
+  //       boxes: req.body.boxes ? Number(req.body.boxes) : undefined,
+  //       bottlesPerBox: req.body.bottlesPerBox ? Number(req.body.bottlesPerBox) : undefined,
+  //       validFrom: req.body.validFrom || null,
+  //       validTo: req.body.validTo || null
+  //     };
+
+  //     if (updates.boxes && updates.boxes < 230) {
+  //       return res.status(400).json({
+  //         error: 'Minimum 230 boxes are required'
+  //       });
+  //     }
+
+  //     if (updates.bottlesPerBox && updates.bottlesPerBox < 1) {
+  //       return res.status(400).json({
+  //         error: 'bottlesPerBox must be at least 1'
+  //       });
+  //     }
+
+  //     if (updates.discountedPrice !== undefined) {
+  //       if (updates.discountedPrice && (!updates.validFrom || !updates.validTo)) {
+  //         return res.status(400).json({
+  //           error: 'validFrom and validTo dates are required when setting a discounted price'
+  //         });
+  //       }
+
+  //       if (updates.validFrom && updates.validTo) {
+  //         const fromDate = new Date(updates.validFrom);
+  //         const toDate = new Date(updates.validTo);
+
+  //         if (fromDate > toDate) {
+  //           return res.status(400).json({
+  //             error: 'validTo date must be after validFrom date'
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     if (req.file) {
+  //       const b64 = Buffer.from(req.file.buffer).toString('base64');
+  //       const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+  //       const result = await cloudinary.uploader.upload(dataURI, {
+  //         folder: 'products',
+  //         resource_type: 'auto'
+  //       });
+
+  //       updates.image = result.secure_url;
+
+  //       const oldProduct = await Product.findById(req.params.productId);
+  //       if (oldProduct && oldProduct.image) {
+  //         const publicId = oldProduct.image.split('/').pop().split('.')[0];
+  //         await cloudinary.uploader.destroy(`products/${publicId}`);
+  //       }
+  //     }
+
+  //     const product = await Product.findByIdAndUpdate(
+  //       req.params.productId,
+  //       updates,
+  //       { new: true }
+  //     );
+
+  //     if (!product) return res.status(404).json({ error: 'Product not found' });
+  //     res.json({ product });
+  //   } catch (error) {
+  //     console.error('Error updating product:', error);
+  //     res.status(500).json({ error: 'Error updating product' });
+  //   }
+  // },
+
+
   updateProduct: async (req, res) => {
-    try {
-      const updates = {
-        ...req.body,
-        originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
-        discountedPrice: req.body.discountedPrice ? Number(req.body)  : null,
-        boxes: req.body.boxes ? Number(req.body.boxes) : undefined,
-        bottlesPerBox: req.body.bottlesPerBox ? Number(req.body.bottlesPerBox) : undefined,
-        validFrom: req.body.validFrom || null,
-        validTo: req.body.validTo || null
-      };
+  try {
+    const updates = {
+      ...req.body,
+      originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : undefined,
+      discountedPrice: req.body.discountedPrice ? Number(req.body.discountedPrice) : null,
+      boxes: req.body.boxes ? Number(req.body.boxes) : undefined,
+      bottlesPerBox: req.body.bottlesPerBox ? Number(req.body.bottlesPerBox) : undefined,
+      validFrom: req.body.validFrom || null,
+      validTo: req.body.validTo || null
+    };
 
-      if (updates.boxes && updates.boxes < 230) {
-        return res.status(400).json({
-          error: 'Minimum 230 boxes are required'
-        });
-      }
+    if (updates.boxes && updates.boxes < 230) {
+      return res.status(400).json({
+        error: 'Minimum 230 boxes are required'
+      });
+    }
 
-      if (updates.bottlesPerBox && updates.bottlesPerBox < 1) {
-        return res.status(400).json({
-          error: 'bottlesPerBox must be at least 1'
-        });
-      }
+    if (updates.bottlesPerBox && updates.bottlesPerBox < 1) {
+      return res.status(400).json({
+        error: 'bottlesPerBox must be at least 1'
+      });
+    }
 
-      if (updates.discountedPrice !== undefined) {
-        if (updates.discountedPrice && (!updates.validFrom || !updates.validTo)) {
-          return res.status(400).json({
-            error: 'validFrom and validTo dates are required when setting a discounted price'
-          });
-        }
+    // Get the current product before updating
+    const oldProduct = await Product.findById(req.params.productId);
+    if (!oldProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
 
-        if (updates.validFrom && updates.validTo) {
-          const fromDate = new Date(updates.validFrom);
-          const toDate = new Date(updates.validTo);
+    // Check if price is being updated
+    const priceChanged = 
+      (updates.originalPrice !== undefined && updates.originalPrice !== oldProduct.originalPrice) ||
+      (updates.discountedPrice !== undefined && updates.discountedPrice !== oldProduct.discountedPrice);
 
-          if (fromDate > toDate) {
-            return res.status(400).json({
-              error: 'validTo date must be after validFrom date'
-            });
+    if (priceChanged) {
+      // Find all pending orders containing this product
+      const pendingOrders = await Order.find({
+        'orderStatus': 'pending',
+        'products.product': req.params.productId
+      });
+
+      // Update each pending order with the new price
+      for (const order of pendingOrders) {
+        for (const item of order.products) {
+          if (item.product.toString() === req.params.productId) {
+            // Store the original price if not already stored
+            if (!item.originalPrice) {
+              item.originalPrice = item.price;
+            }
+            
+            // Calculate new price based on offer validity
+            const now = new Date();
+            const isOfferValid = 
+              updates.discountedPrice && 
+              updates.validFrom && 
+              updates.validTo && 
+              now >= new Date(updates.validFrom) && 
+              now <= new Date(updates.validTo);
+            
+            const newPrice = isOfferValid ? updates.discountedPrice : updates.originalPrice;
+
+            // Record price change if different from current price
+            if (item.price !== newPrice) {
+              order.priceUpdateHistory.push({
+                product: item.product,
+                oldPrice: item.price,
+                newPrice: newPrice,
+                updatedBy: req.user._id,
+                updatedAt: new Date()
+              });
+              
+              item.price = newPrice;
+              order.priceUpdated = true;
+            }
           }
         }
-      }
 
-      if (req.file) {
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        // Recalculate order totals
+        order.totalAmount = order.products.reduce((sum, item) => sum + (item.price * item.boxes), 0);
+        order.totalAmountWithDelivery = order.totalAmount + (order.deliveryCharge || 0);
+        await order.save();
 
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'products',
-          resource_type: 'auto'
-        });
-
-        updates.image = result.secure_url;
-
-        const oldProduct = await Product.findById(req.params.productId);
-        if (oldProduct && oldProduct.image) {
-          const publicId = oldProduct.image.split('/').pop().split('.')[0];
-          await cloudinary.uploader.destroy(`products/${publicId}`);
+        // Update associated payment if exists
+        const payment = await Payment.findOne({ orderDetails: order._id });
+        if (payment) {
+          payment.amount = order.totalAmountWithDelivery;
+          payment.remainingAmount = payment.amount - payment.paidAmount;
+          await payment.save();
         }
       }
-
-      const product = await Product.findByIdAndUpdate(
-        req.params.productId,
-        updates,
-        { new: true }
-      );
-
-      if (!product) return res.status(404).json({ error: 'Product not found' });
-      res.json({ product });
-    } catch (error) {
-      console.error('Error updating product:', error);
-      res.status(500).json({ error: 'Error updating product' });
     }
-  },
+
+    // Handle image upload if present
+    if (req.file) {
+      const b64 = Buffer.from(req.file.buffer).toString('base64');
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: 'products',
+        resource_type: 'auto'
+      });
+
+      updates.image = result.secure_url;
+
+      if (oldProduct.image) {
+        const publicId = oldProduct.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`products/${publicId}`);
+      }
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.productId,
+      updates,
+      { new: true }
+    );
+
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    
+    // res.json({ 
+    //   product,
+    //   priceUpdatedOrders: priceChanged ? pendingOrders.length : 0
+    // });
+    res.json({ product });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Error updating product' });
+  }
+},
 
   getPreviewOrders: async (req, res) => {
     try {

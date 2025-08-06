@@ -666,90 +666,175 @@ getPendingPayments : async (req, res) => {
   // },
 
 
+  // updateOrderStatus: async (req, res) => {
+  //   try {
+  //     const { orderId } = req.params;
+  //     const { status } = req.body;
+
+  //     if (status !== 'processing') {
+  //       return res.status(400).json({ error: 'Reception can only set orders to processing status' });
+  //     }
+
+  //     const order = await Order.findById(orderId).populate('products.product');
+  //     if (!order) {
+  //       return res.status(404).json({ error: 'Order not found' });
+  //     }
+
+  //     if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
+  //       return res.status(400).json({ error: 'Can only process pending or preview orders' });
+  //     }
+
+  //     // Check for price updates
+  //     let totalAmount = 0;
+  //     let priceChanged = false;
+  //     const priceUpdateHistory = [];
+
+  //     for (const item of order.products) {
+  //       const product = await Product.findById(item.product._id);
+  //       if (!product || !product.isActive) {
+  //         return res.status(400).json({ error: `Product ${item.product.name} is inactive or not found` });
+  //       }
+
+  //       const now = new Date();
+  //       const isOfferValid = product.discountedPrice != null &&
+  //                           product.validFrom &&
+  //                           product.validTo &&
+  //                           now >= new Date(product.validFrom) &&
+  //                           now <= new Date(product.validTo);
+  //       const currentPrice = isOfferValid ? product.discountedPrice : product.originalPrice;
+
+  //       if (currentPrice !== item.price) {
+  //         priceChanged = true;
+  //         priceUpdateHistory.push({
+  //           product: item.product._id,
+  //           oldPrice: item.price,
+  //           newPrice: currentPrice,
+  //           updatedBy: req.user._id
+  //         });
+  //         item.price = currentPrice; // Update price in order
+  //       }
+
+  //       totalAmount += currentPrice * item.boxes;
+  //     }
+
+     
+
+  //     if (priceChanged) {
+  //       order.priceUpdated = true;
+  //       order.priceUpdateHistory = priceUpdateHistory;
+  //       order.totalAmount = totalAmount;
+  //       order.totalAmountWithDelivery = totalAmount + (order.deliveryCharge || 0);
+
+  //       // Update associated payment
+  //       const payment = await Payment.findOne({ orderDetails: order._id });
+  //       if (payment) {
+  //         payment.amount = order.totalAmountWithDelivery;
+  //         payment.remainingAmount = payment.amount - payment.paidAmount;
+  //         await payment.save();
+  //       }
+
+  //       // TODO: Notify user about price change (e.g., via email or in-app notification)
+  //       console.log(`Price updated for order ${order._id}. New total: ${order.totalAmount}`);
+  //     }
+
+  //     order._updatedBy = req.user._id;
+  //     order.orderStatus = status;
+  //     await order.save();
+
+  //     res.json({
+  //       message: 'Order status updated successfully',
+  //       order,
+  //       priceUpdated: priceChanged,
+  //       priceUpdateDetails: priceChanged ? priceUpdateHistory : undefined
+  //     });
+  //   } catch (error) {
+  //     console.error('Error updating order status:', error);
+  //     res.status(500).json({ error: 'Error updating order status', details: error.message });
+  //   }
+  // },
+
+
   updateOrderStatus: async (req, res) => {
-    try {
-      const { orderId } = req.params;
-      const { status } = req.body;
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
 
-      if (status !== 'processing') {
-        return res.status(400).json({ error: 'Reception can only set orders to processing status' });
-      }
-
-      const order = await Order.findById(orderId).populate('products.product');
-      if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
-
-      if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
-        return res.status(400).json({ error: 'Can only process pending or preview orders' });
-      }
-
-      // Check for price updates
-      let totalAmount = 0;
-      let priceChanged = false;
-      const priceUpdateHistory = [];
-
-      for (const item of order.products) {
-        const product = await Product.findById(item.product._id);
-        if (!product || !product.isActive) {
-          return res.status(400).json({ error: `Product ${item.product.name} is inactive or not found` });
-        }
-
-        const now = new Date();
-        const isOfferValid = product.discountedPrice != null &&
-                            product.validFrom &&
-                            product.validTo &&
-                            now >= new Date(product.validFrom) &&
-                            now <= new Date(product.validTo);
-        const currentPrice = isOfferValid ? product.discountedPrice : product.originalPrice;
-
-        if (currentPrice !== item.price) {
-          priceChanged = true;
-          priceUpdateHistory.push({
-            product: item.product._id,
-            oldPrice: item.price,
-            newPrice: currentPrice,
-            updatedBy: req.user._id
-          });
-          item.price = currentPrice; // Update price in order
-        }
-
-        totalAmount += currentPrice * item.boxes;
-      }
-
-      if (priceChanged) {
-        order.priceUpdated = true;
-        order.priceUpdateHistory = priceUpdateHistory;
-        order.totalAmount = totalAmount;
-        order.totalAmountWithDelivery = totalAmount + (order.deliveryCharge || 0);
-
-        // Update associated payment
-        const payment = await Payment.findOne({ orderDetails: order._id });
-        if (payment) {
-          payment.amount = order.totalAmountWithDelivery;
-          payment.remainingAmount = payment.amount - payment.paidAmount;
-          await payment.save();
-        }
-
-        // TODO: Notify user about price change (e.g., via email or in-app notification)
-        console.log(`Price updated for order ${order._id}. New total: ${order.totalAmount}`);
-      }
-
-      order._updatedBy = req.user._id;
-      order.orderStatus = status;
-      await order.save();
-
-      res.json({
-        message: 'Order status updated successfully',
-        order,
-        priceUpdated: priceChanged,
-        priceUpdateDetails: priceChanged ? priceUpdateHistory : undefined
-      });
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      res.status(500).json({ error: 'Error updating order status', details: error.message });
+    if (status !== 'processing') {
+      return res.status(400).json({ error: 'Reception can only set orders to processing status' });
     }
-  },
+
+    const order = await Order.findById(orderId).populate('products.product');
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.orderStatus !== 'pending' && order.orderStatus !== 'preview') {
+      return res.status(400).json({ error: 'Can only process pending or preview orders' });
+    }
+
+    // Check for price updates
+    let totalAmount = 0;
+    let priceChanged = false;
+    const priceUpdateHistory = [];
+
+    for (const item of order.products) {
+      const product = await Product.findById(item.product._id);
+      if (!product || !product.isActive) {
+        return res.status(400).json({ error: `Product ${item.product.name} is inactive or not found` });
+      }
+
+      const now = new Date();
+      const isOfferValid = product.discountedPrice != null &&
+                          product.validFrom &&
+                          product.validTo &&
+                          now >= new Date(product.validFrom) &&
+                          now <= new Date(product.validTo);
+      const currentPrice = isOfferValid ? product.discountedPrice : product.originalPrice;
+
+      if (currentPrice !== item.price) {
+        priceChanged = true;
+        priceUpdateHistory.push({
+          product: item.product._id,
+          oldPrice: item.price,
+          newPrice: currentPrice,
+          updatedBy: req.user._id
+        });
+        item.price = currentPrice; // Update price in order
+      }
+
+      totalAmount += currentPrice * item.boxes;
+    }
+
+    if (priceChanged) {
+      order.priceUpdated = true;
+      order.priceUpdateHistory = priceUpdateHistory;
+      order.totalAmount = totalAmount;
+      order.totalAmountWithDelivery = totalAmount + (order.deliveryCharge || 0);
+
+      // Update associated payment
+      const payment = await Payment.findOne({ orderDetails: order._id });
+      if (payment) {
+        payment.amount = order.totalAmountWithDelivery;
+        payment.remainingAmount = payment.amount - payment.paidAmount;
+        await payment.save();
+      }
+    }
+
+    order._updatedBy = req.user._id;
+    order.orderStatus = status;
+    await order.save();
+
+    res.json({
+      message: 'Order status updated successfully',
+      order,
+      priceUpdated: priceChanged,
+      priceUpdateDetails: priceChanged ? priceUpdateHistory : undefined
+    });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Error updating order status', details: error.message });
+  }
+},
 
 
 
