@@ -202,12 +202,39 @@ const orderSchema = new mongoose.Schema({
     boxes: {
       type: Number,
       required: true,
-      min: 230 // Minimum 230 boxes
+      min: 230 
     },
     price: {
       type: Number,
       required: true,
-      min: 0 // Price per box
+      min: 0 
+    },
+    // New field to store price at order creation
+    originalPrice: { 
+      type: Number,
+      required: true,
+      min: 0
+    }
+  }],
+
+  priceUpdated: {
+    type: Boolean,
+    default: false
+  },
+  priceUpdateHistory: [{ // Track price updates
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product'
+    },
+    oldPrice: Number,
+    newPrice: Number,
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
     }
   }],
   totalAmount: {
@@ -359,6 +386,10 @@ orderSchema.pre('save', function(next) {
       updatedBy: this._updatedBy,
       updatedAt: new Date()
     });
+  }
+  // Recalculate totalAmountWithDelivery if totalAmount or deliveryCharge changes
+  if (this.isModified('totalAmount') || this.isModified('deliveryCharge')) {
+    this.totalAmountWithDelivery = this.totalAmount + (this.deliveryCharge || 0);
   }
   this.updatedAt = new Date();
   next();

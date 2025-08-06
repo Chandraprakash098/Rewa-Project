@@ -261,22 +261,22 @@ exports.generateChallan = async (req, res) => {
       mobileNo,
       items,
       receiverName,
-      deliveryChoice, // New: 'homeDelivery' or 'companyPickup'
-      shippingAddress, // New: Contains address, city, state, pinCode
-      deliveryCharge: manualDeliveryCharge // New: Optional manual delivery charge
+      deliveryChoice, 
+      shippingAddress, 
+      deliveryCharge: manualDeliveryCharge 
     } = req.body;
 
-    // Validate input
+    
     if (!userCode) {
       return res.status(400).json({ error: 'User code is required' });
     }
 
-    // Validate items
+    
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Invalid or empty items list' });
     }
 
-    // Validate shipping address if provided
+    
     if (shippingAddress && (!shippingAddress.address || !shippingAddress.city || !shippingAddress.state || !shippingAddress.pinCode)) {
       return res.status(400).json({ error: 'Complete shipping address with pin code is required' });
     }
@@ -285,47 +285,64 @@ exports.generateChallan = async (req, res) => {
       return res.status(400).json({ error: 'Pin code must be 6 digits' });
     }
 
-    // Validate delivery choice
+    
     if (deliveryChoice && !['homeDelivery', 'companyPickup'].includes(deliveryChoice)) {
       return res.status(400).json({ error: 'Invalid delivery choice' });
     }
 
-    // Generate invoice number
+    
     const invoiceNo = await generateInvoiceNumber();
 
-    // Calculate total amount based on boxes and rate
-    const totalAmount = items.reduce((sum, item) => {
-      const boxes = Number(item.boxes) || 0; // Use 'boxes' instead of 'quantity'
+    
+    // const totalAmount = items.reduce((sum, item) => {
+    //   const boxes = Number(item.boxes) || 0; // Use 'boxes' instead of 'quantity'
+    //   const rate = Number(item.rate) || 0;
+    //   if (boxes < 230) {
+    //     throw new Error(`Minimum 230 boxes required for item: ${item.productName || item.description}`);
+    //   }
+    //   return sum + (boxes * rate);
+    // }, 0);
+
+    
+    // const formattedItems = items.map(item => ({
+    //   description: item.productName || item.description || 'Unnamed Item',
+    //   boxes: Number(item.boxes) || 0, // Use 'boxes' instead of 'quantity'
+    //   rate: Number(item.rate) || 0,
+    //   amount: Number(item.boxes || 0) * Number(item.rate || 0)
+    // }));
+
+    let totalAmount = 0;
+    const formattedItems = items.map(item => {
+      const boxes = Number(item.boxes) || 0;
       const rate = Number(item.rate) || 0;
       if (boxes < 230) {
         throw new Error(`Minimum 230 boxes required for item: ${item.productName || item.description}`);
       }
-      return sum + (boxes * rate);
-    }, 0);
+      const amount = boxes * rate;
+      totalAmount += amount;
+      return {
+        description: item.productName || item.description || 'Unnamed Item',
+        boxes: boxes,
+        rate: rate,
+        amount: amount
+      };
+    });
 
-    // Prepare items for schema
-    const formattedItems = items.map(item => ({
-      description: item.productName || item.description || 'Unnamed Item',
-      boxes: Number(item.boxes) || 0, // Use 'boxes' instead of 'quantity'
-      rate: Number(item.rate) || 0,
-      amount: Number(item.boxes || 0) * Number(item.rate || 0)
-    }));
-
-    // Calculate delivery charge
+    
     let deliveryCharge = 0;
     if (manualDeliveryCharge !== undefined) {
-      // Use manually provided delivery charge
+      
       deliveryCharge = Number(manualDeliveryCharge);
       if (isNaN(deliveryCharge) || deliveryCharge < 0) {
         return res.status(400).json({ error: 'Invalid delivery charge' });
       }
     } else if (deliveryChoice && shippingAddress) {
-      // Automatically calculate delivery charge
+      
       const totalBoxes = formattedItems.reduce((sum, item) => sum + item.boxes, 0);
       deliveryCharge = calculateDeliveryCharge(totalBoxes, deliveryChoice, shippingAddress.pinCode);
     }
 
-    // Calculate total amount with delivery
+    
     const totalAmountWithDelivery = totalAmount + deliveryCharge;
 
     // Create new challan
@@ -338,15 +355,15 @@ exports.generateChallan = async (req, res) => {
       mobileNo,
       items: formattedItems,
       totalAmount,
-      deliveryCharge, // New field
-      totalAmountWithDelivery, // New field
+      deliveryCharge,
+      totalAmountWithDelivery, 
       receiverName,
       dcNo: invoiceNo,
-      shippingAddress: shippingAddress || undefined, // Include shipping address if provided
-      deliveryChoice: deliveryChoice || undefined // Include delivery choice if provided
+      shippingAddress: shippingAddress || undefined,
+      deliveryChoice: deliveryChoice || undefined 
     });
 
-    // Save the challan
+    
     const savedChallan = await challan.save();
 
     res.json({

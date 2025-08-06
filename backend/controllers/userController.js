@@ -143,6 +143,8 @@ getAllProducts: async (req, res) => {
           .lean();
         return {
           ...order,
+          priceUpdated: order.priceUpdated, // Include price update status
+          priceUpdateHistory: order.priceUpdateHistory, // Include price update history
           paymentDetails: payment ? {
             _id: payment._id,
             user: payment.user,
