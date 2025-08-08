@@ -1496,42 +1496,98 @@ const paymentController = {
         return res.status(400).json({ error: "Cart is empty" });
       }
 
+      // const orderProducts = [];
+      // let totalAmount = 0;
+      // const productTypes = new Set();
+      // const now = new Date();
+
+      // for (const item of cart.products) {
+      //   const product = await Product.findById(item.product._id);
+      //   if (!product || !product.isActive) {
+      //     return res.status(400).json({
+      //       error: `Product not found or inactive: ${item.product.name}`
+      //     });
+      //   }
+
+      //   const isOfferValid = product.discountedPrice &&
+      //                       product.validFrom &&
+      //                       product.validTo &&
+      //                       now >= product.validFrom &&
+      //                       now <= product.validTo;
+      //   const price = isOfferValid ? product.discountedPrice : product.originalPrice;
+
+      //   if (item.boxes < 230) {
+      //     return res.status(400).json({
+      //       error: `Minimum 230 boxes required for ${product.name}`,
+      //       minimumRequired: 230,
+      //       requestedBoxes: item.boxes
+      //     });
+      //   }
+
+      //   totalAmount += price * item.boxes;
+      //   orderProducts.push({
+      //     product: product._id,
+      //     boxes: item.boxes,
+      //     price: price
+      //   });
+      //   productTypes.add(product.type);
+      // }
+
+
       const orderProducts = [];
-      let totalAmount = 0;
-      const productTypes = new Set();
-      const now = new Date();
+let totalAmount = 0;
+const productTypes = new Set();
+const now = new Date();
 
-      for (const item of cart.products) {
-        const product = await Product.findById(item.product._id);
-        if (!product || !product.isActive) {
-          return res.status(400).json({
-            error: `Product not found or inactive: ${item.product.name}`
-          });
-        }
+for (const item of cart.products) {
+  const product = await Product.findById(item.product._id);
+  if (!product || !product.isActive) {
+    return res.status(400).json({
+      error: `Product not found or inactive: ${item.product.name}`
+    });
+  }
 
-        const isOfferValid = product.discountedPrice &&
-                            product.validFrom &&
-                            product.validTo &&
-                            now >= product.validFrom &&
-                            now <= product.validTo;
-        const price = isOfferValid ? product.discountedPrice : product.originalPrice;
+  // Validate originalPrice
+  if (product.originalPrice == null || isNaN(product.originalPrice)) {
+    return res.status(400).json({
+      error: `Invalid originalPrice for product: ${product.name}`
+    });
+  }
 
-        if (item.boxes < 230) {
-          return res.status(400).json({
-            error: `Minimum 230 boxes required for ${product.name}`,
-            minimumRequired: 230,
-            requestedBoxes: item.boxes
-          });
-        }
+  // Check if the product has a valid discount
+  const isOfferValid = product.discountedPrice &&
+                      product.validFrom &&
+                      product.validTo &&
+                      now >= product.validFrom &&
+                      now <= product.validTo;
 
-        totalAmount += price * item.boxes;
-        orderProducts.push({
-          product: product._id,
-          boxes: item.boxes,
-          price: price
-        });
-        productTypes.add(product.type);
-      }
+  // Use discountedPrice if offer is valid, otherwise use originalPrice
+  const price = isOfferValid ? product.discountedPrice : product.originalPrice;
+
+  // Validate price
+  if (price == null || isNaN(price)) {
+    return res.status(400).json({
+      error: `Invalid price for product: ${product.name}`
+    });
+  }
+
+  if (item.boxes < 230) {
+    return res.status(400).json({
+      error: `Minimum 230 boxes required for ${product.name}`,
+      minimumRequired: 230,
+      requestedBoxes: item.boxes
+    });
+  }
+
+  totalAmount += price * item.boxes;
+  orderProducts.push({
+    product: product._id,
+    boxes: item.boxes,
+    price: price, // Effective price (discountedPrice if offer valid, else originalPrice)
+    originalPrice: product.originalPrice // Always the non-discounted price
+  });
+  productTypes.add(product.type);
+}
 
       const deliveryCharge = calculateDeliveryCharge(
         orderProducts.reduce((sum, item) => sum + item.boxes, 0),
