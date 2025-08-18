@@ -8,6 +8,7 @@ const cloudinary = require('../config/cloudinary');
 const Product= require('../models/Product');
 const Payment = require('../models/Payment');
 const streamifier = require('streamifier');
+const mongoose = require('mongoose');
 
 
 const generateUserCode = async () => {
@@ -470,34 +471,76 @@ createOrderAsReception: async (req, res) => {
     }
   },
 
-  getOrderHistory : async (req, res) => {
-    try {
-      const thirtyFiveDaysAgo = new Date();
-      thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+  // getOrderHistory : async (req, res) => {
+  //   try {
+  //     const thirtyFiveDaysAgo = new Date();
+  //     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
   
-      const orders = await Order.find({
-        createdAt: { $gte: thirtyFiveDaysAgo }
-      })
-        .select('orderId firmName gstNumber email shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
-        .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
-        .populate('products.product', 'name type quantity')
-        .populate('createdByReception', 'name')
-        .sort({ createdAt: -1 });
+  //     const orders = await Order.find({
+  //       createdAt: { $gte: thirtyFiveDaysAgo }
+  //     })
+  //       .select('orderId firmName gstNumber email shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
+  //       .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
+  //       .populate('products.product', 'name type quantity')
+  //       .populate('createdByReception', 'name')
+  //       .sort({ createdAt: -1 });
   
-      const formattedOrders = orders.map(order => ({
-        ...order.toObject(),
-        orderSource: order.createdByReception ? 
-          (order.user.role === 'miscellaneous' ?
-            `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)` :
-            `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}`) :
-          `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
-      }));
+  //     const formattedOrders = orders.map(order => ({
+  //       ...order.toObject(),
+  //       orderSource: order.createdByReception ? 
+  //         (order.user.role === 'miscellaneous' ?
+  //           `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)` :
+  //           `Created by ${order.createdByReception.name} for ${order.user.customerDetails?.firmName || order.user.name}`) :
+  //         `Direct order by ${order.user.customerDetails?.firmName || order.user.name}`
+  //     }));
   
-      res.json({ orders: formattedOrders });
-    } catch (error) {
-      res.status(500).json({ error: 'Error fetching order history' });
+  //     res.json({ orders: formattedOrders });
+  //   } catch (error) {
+  //     res.status(500).json({ error: 'Error fetching order history' });
+  //   }
+  // },
+
+
+  getOrderHistory: async (req, res) => {
+  try {
+    // Verify database connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database not connected');
     }
-  },
+
+    const thirtyFiveDaysAgo = new Date();
+    thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+    const orders = await Order.find({
+      createdAt: { $gte: thirtyFiveDaysAgo }
+    })
+      .select('orderId firmName gstNumber email shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous')
+      .populate('user', 'name phoneNumber email role customerDetails.firmName customerDetails.userCode')
+      .populate('products.product', 'name type quantity')
+      .populate('createdByReception', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const user = orderObj.user || {};
+      const createdByReception = orderObj.createdByReception || {};
+      const customerDetails = user.customerDetails || {};
+      return {
+        ...orderObj,
+        orderSource: createdByReception.name
+          ? user.role === 'miscellaneous'
+            ? `Created by ${createdByReception.name} for ${user.name || 'Unknown'} (Miscellaneous)`
+            : `Created by ${createdByReception.name} for ${customerDetails.firmName || user.name || 'Unknown'}`
+          : `Direct order by ${customerDetails.firmName || user.name || 'Unknown'}`
+      };
+    });
+
+    res.json({ orders: formattedOrders });
+  } catch (error) {
+    console.error('Error in getOrderHistory:', error.message, error.stack);
+    res.status(500).json({ error: 'Error fetching order history', details: error.message });
+  }
+},
 
   
   searchUsers: async (req, res) => {
