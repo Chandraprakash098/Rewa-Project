@@ -814,12 +814,49 @@ const adminController = {
     }
   },
 
+  // processPreviewOrder: async (req, res) => {
+  //   try {
+  //     const { orderId } = req.params;
+  //     console.log("Processing orderId:", orderId);
+
+  //     const order = await Order.findById(orderId);
+  //     if (!order) {
+  //       return res.status(400).json({ error: "Order not found" });
+  //     }
+  //     if (order.orderStatus !== "preview") {
+  //       return res.status(400).json({ error: "Invalid preview order status" });
+  //     }
+
+  //     console.log("Order found:", order);
+
+  //     if (!req.user || !req.user._id) {
+  //       return res.status(401).json({ error: "Unauthorized" });
+  //     }
+
+  //     order.userActivityStatus = order.userActivityStatus || "active";
+
+  //     order._updatedBy = req.user._id;
+  //     order.orderStatus = "processing";
+
+  //     await order.save();
+  //     console.log("Order updated to processing:", order);
+
+  //     res.json({ message: "Order moved to processing", order });
+  //   } catch (error) {
+  //     console.error("Error processing order:", error);
+  //     res
+  //       .status(500)
+  //       .json({ error: "Error processing order", details: error.message });
+  //   }
+  // },
+
+
   processPreviewOrder: async (req, res) => {
     try {
       const { orderId } = req.params;
       console.log("Processing orderId:", orderId);
 
-      const order = await Order.findById(orderId);
+      const order = await Order.findById(orderId).populate("products.product");
       if (!order) {
         return res.status(400).json({ error: "Order not found" });
       }
@@ -827,21 +864,79 @@ const adminController = {
         return res.status(400).json({ error: "Invalid preview order status" });
       }
 
-      console.log("Order found:", order);
-
       if (!req.user || !req.user._id) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      order.userActivityStatus = order.userActivityStatus || "active";
+      // Check for price updates
+      let totalAmount = 0;
+      let priceChanged = false;
+      const priceUpdateHistory = [];
 
+      for (const item of order.products) {
+        const product = await Product.findById(item.product._id);
+        if (!product || !product.isActive) {
+          return res
+            .status(400)
+            .json({
+              error: `Product ${item.product.name} is inactive or not found`,
+            });
+        }
+
+        const now = new Date();
+        const isOfferValid =
+          product.discountedPrice != null &&
+          product.validFrom &&
+          product.validTo &&
+          now >= new Date(product.validFrom) &&
+          now <= new Date(product.validTo);
+        const currentPrice = isOfferValid
+          ? product.discountedPrice
+          : product.originalPrice;
+
+        if (currentPrice !== item.price) {
+          priceChanged = true;
+          priceUpdateHistory.push({
+            product: item.product._id,
+            oldPrice: item.price,
+            newPrice: currentPrice,
+            updatedBy: req.user._id,
+            updatedAt: new Date(),
+          });
+          item.price = currentPrice;
+        }
+
+        totalAmount += currentPrice * item.boxes;
+      }
+
+      if (priceChanged) {
+        order.priceUpdated = true;
+        order.priceUpdateHistory = priceUpdateHistory;
+        order.totalAmount = totalAmount;
+        order.totalAmountWithDelivery =
+          totalAmount + (order.deliveryCharge || 0);
+
+        const payment = await Payment.findOne({ orderDetails: order._id });
+        if (payment) {
+          payment.amount = order.totalAmountWithDelivery;
+          payment.remainingAmount = payment.amount - payment.paidAmount;
+          await payment.save();
+        }
+      }
+
+      order.userActivityStatus = order.userActivityStatus || "active";
       order._updatedBy = req.user._id;
       order.orderStatus = "processing";
 
       await order.save();
       console.log("Order updated to processing:", order);
 
-      res.json({ message: "Order moved to processing", order });
+      res.json({
+        message: "Order moved to processing",
+        order,
+        priceUpdated: priceChanged,
+        priceUpdateDetails: priceChanged ? priceUpdateHistory : undefined,
+      });
     } catch (error) {
       console.error("Error processing order:", error);
       res
