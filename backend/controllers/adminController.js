@@ -945,54 +945,119 @@ const adminController = {
     }
   },
 
+  // getAllOrders: async (req, res) => {
+  //   try {
+  //     const { type } = req.query;
+  //     let query = {};
+
+  //     if (type && ["Bottle", "Raw Material", "all"].includes(type)) {
+  //       if (type !== "all") {
+  //         query.type = type;
+  //       }
+  //     }
+
+  //     const orders = await Order.find(query)
+  //       .select(
+  //         "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products"
+  //       )
+  //       .populate(
+  //         "user",
+  //         "name email phoneNumber customerDetails.firmName customerDetails.userCode"
+  //       )
+  //       .populate("products.product", "name type")
+  //       .sort({ createdAt: -1 });
+
+  //     const groupedOrders = {
+  //       all: orders,
+  //       Bottle: orders.filter((order) => order.type === "Bottle"),
+  //       "Raw Material": orders.filter((order) => order.type === "Raw Material"),
+  //     };
+
+  //     const responseOrders = type
+  //       ? type === "all"
+  //         ? orders
+  //         : groupedOrders[type]
+  //       : orders;
+
+  //     res.json({
+  //       orders: responseOrders,
+  //       totalOrders: responseOrders.length,
+  //       summary: {
+  //         totalBottleOrders: groupedOrders["Bottle"].length,
+  //         totalRawMaterialOrders: groupedOrders["Raw Material"].length,
+  //         totalOrders: orders.length,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Error in getAllOrders:", error);
+  //     res.status(500).json({ error: "Error fetching orders" });
+  //   }
+  // },
+
+
+
   getAllOrders: async (req, res) => {
-    try {
-      const { type } = req.query;
-      let query = {};
+  try {
+    const { type } = req.query;
+    let query = {};
 
-      if (type && ["Bottle", "Raw Material", "all"].includes(type)) {
-        if (type !== "all") {
-          query.type = type;
-        }
+    if (type && ["Bottle", "Raw Material", "all"].includes(type)) {
+      if (type !== "all") {
+        query.type = type;
       }
-
-      const orders = await Order.find(query)
-        .select(
-          "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products"
-        )
-        .populate(
-          "user",
-          "name email phoneNumber customerDetails.firmName customerDetails.userCode"
-        )
-        .populate("products.product", "name type")
-        .sort({ createdAt: -1 });
-
-      const groupedOrders = {
-        all: orders,
-        Bottle: orders.filter((order) => order.type === "Bottle"),
-        "Raw Material": orders.filter((order) => order.type === "Raw Material"),
-      };
-
-      const responseOrders = type
-        ? type === "all"
-          ? orders
-          : groupedOrders[type]
-        : orders;
-
-      res.json({
-        orders: responseOrders,
-        totalOrders: responseOrders.length,
-        summary: {
-          totalBottleOrders: groupedOrders["Bottle"].length,
-          totalRawMaterialOrders: groupedOrders["Raw Material"].length,
-          totalOrders: orders.length,
-        },
-      });
-    } catch (error) {
-      console.error("Error in getAllOrders:", error);
-      res.status(500).json({ error: "Error fetching orders" });
     }
-  },
+
+    const orders = await Order.find(query)
+      .select(
+        "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount totalAmountWithDelivery priceUpdated userActivityStatus expiresAt"
+      )
+      .populate(
+        "user",
+        "name email phoneNumber customerDetails.firmName customerDetails.userCode"
+      )
+      .populate("products.product", "name type originalPrice discountedPrice")
+      .sort({ createdAt: -1 });
+
+    const groupedOrders = {
+      all: orders,
+      Bottle: orders.filter((order) => order.type === "Bottle"),
+      "Raw Material": orders.filter((order) => order.type === "Raw Material"),
+    };
+
+    const responseOrders = type
+      ? type === "all"
+        ? orders
+        : groupedOrders[type]
+      : orders;
+
+    // Add order status breakdown to summary
+    const statusSummary = {
+      pending: orders.filter((order) => order.orderStatus === "pending").length,
+      preview: orders.filter((order) => order.orderStatus === "preview").length,
+      processing: orders.filter((order) => order.orderStatus === "processing").length,
+      confirmed: orders.filter((order) => order.orderStatus === "confirmed").length,
+      shipped: orders.filter((order) => order.orderStatus === "shipped").length,
+      cancelled: orders.filter((order) => order.orderStatus === "cancelled").length,
+    };
+
+    res.json({
+      orders: responseOrders,
+      totalOrders: responseOrders.length,
+      summary: {
+        totalBottleOrders: groupedOrders["Bottle"].length,
+        totalRawMaterialOrders: groupedOrders["Raw Material"].length,
+        totalOrders: orders.length,
+        statusSummary, // Include status breakdown
+      },
+    });
+  } catch (error) {
+    console.error("Error in getAllOrders:", error);
+    res.status(500).json({
+      error: "Error fetching orders",
+      details: error.message,
+    });
+  }
+},
 
   updateOrderStatus: async (req, res) => {
     try {
