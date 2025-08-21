@@ -26,23 +26,52 @@ const generateInvoiceNumber = async () => {
   return sequence.toString();
 };
 
+// exports.getCurrentOrders = async (req, res) => {
+//   try {
+//     const orders = await Order.find({
+//       status: { $in: ["pending", "processing"] },
+//     })
+//       .populate(
+//         "user",
+//         "name customerDetails.firmName customerDetails.userCode"
+//       )
+//       .populate("products.product")
+//       .sort({ createdAt: -1 });
+
+//     res.json(orders);
+//   } catch (error) {
+//     res.status(500).json({ error: "Server error" });
+//   }
+// };
+
+
 exports.getCurrentOrders = async (req, res) => {
   try {
     const orders = await Order.find({
-      status: { $in: ["pending", "processing"] },
+      orderStatus: { $in: ["pending", "processing"] }, // Corrected 'status' to 'orderStatus'
     })
       .populate(
         "user",
         "name customerDetails.firmName customerDetails.userCode"
       )
-      .populate("products.product")
+      .populate("products.product", "name type")
       .sort({ createdAt: -1 });
 
-    res.json(orders);
+    const formattedOrders = orders.map((order) => ({
+      ...order.toObject(),
+      totalAmount: Number(order.totalAmount),
+      deliveryCharge: Number(order.deliveryCharge || 0),
+      totalAmountWithDelivery: Number(order.totalAmountWithDelivery),
+      orderId: order.orderId, // Virtual field from Order model
+    }));
+
+    res.json({ orders: formattedOrders });
   } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    console.error("Error fetching current orders:", error);
+    res.status(500).json({ error: "Server error", details: error.message });
   }
 };
+
 
 exports.updateOrderStatus = async (req, res) => {
   try {
@@ -99,6 +128,9 @@ exports.getProcessingOrders = async (req, res) => {
     res.status(500).json({ error: "Error fetching processing orders" });
   }
 };
+
+
+
 
 exports.downloadChallan = async (req, res) => {
   try {
@@ -283,6 +315,45 @@ exports.getChallansByUserCode = async (req, res) => {
   }
 };
 
+// exports.getOrderHistory = async (req, res) => {
+//   try {
+//     const thirtyFiveDaysAgo = new Date();
+//     thirtyFiveDaysAgo.setDate(thirtyFiveDaysAgo.getDate() - 35);
+
+//     const orders = await Order.find({
+//       createdAt: { $gte: thirtyFiveDaysAgo },
+//     })
+//       .select(
+//         "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount products isMiscellaneous"
+//       )
+//       .populate(
+//         "user",
+//         "name phoneNumber email role customerDetails.firmName customerDetails.userCode"
+//       )
+//       .populate("products.product", "name type quantity")
+//       .populate("createdByReception", "name")
+//       .sort({ createdAt: -1 });
+
+//     const formattedOrders = orders.map((order) => ({
+//       ...order.toObject(),
+//       orderSource: order.createdByReception
+//         ? order.user.role === "miscellaneous"
+//           ? `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)`
+//           : `Created by ${order.createdByReception.name} for ${
+//               order.user.customerDetails?.firmName || order.user.name
+//             }`
+//         : `Direct order by ${
+//             order.user.customerDetails?.firmName || order.user.name
+//           }`,
+//     }));
+
+//     res.json({ orders: formattedOrders });
+//   } catch (error) {
+//     res.status(500).json({ error: "Error fetching order history" });
+//   }
+// };
+
+
 exports.getOrderHistory = async (req, res) => {
   try {
     const thirtyFiveDaysAgo = new Date();
@@ -302,24 +373,45 @@ exports.getOrderHistory = async (req, res) => {
       .populate("createdByReception", "name")
       .sort({ createdAt: -1 });
 
-    const formattedOrders = orders.map((order) => ({
-      ...order.toObject(),
-      orderSource: order.createdByReception
-        ? order.user.role === "miscellaneous"
-          ? `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)`
-          : `Created by ${order.createdByReception.name} for ${
+    const formattedOrders = orders.map((order) => {
+      if (!order.user) {
+        console.warn(`Order ${order.orderId} has no associated user. Order ID: ${order._id}`);
+        return {
+          ...order.toObject(),
+          totalAmount: Number(order.totalAmount),
+          deliveryCharge: Number(order.deliveryCharge || 0),
+          totalAmountWithDelivery: Number(order.totalAmountWithDelivery || order.totalAmount + (order.deliveryCharge || 0)),
+          orderId: order.orderId,
+          orderSource: `Unknown user (Order ID: ${order.orderId})`,
+        };
+      }
+
+      return {
+        ...order.toObject(),
+        totalAmount: Number(order.totalAmount),
+        deliveryCharge: Number(order.deliveryCharge || 0),
+        totalAmountWithDelivery: Number(order.totalAmountWithDelivery || order.totalAmount + (order.deliveryCharge || 0)),
+        orderId: order.orderId,
+        orderSource: order.createdByReception
+          ? order.user.role === "miscellaneous"
+            ? `Created by ${order.createdByReception.name} for ${order.user.name} (Miscellaneous)`
+            : `Created by ${order.createdByReception.name} for ${
+                order.user.customerDetails?.firmName || order.user.name
+              }`
+          : `Direct order by ${
               order.user.customerDetails?.firmName || order.user.name
-            }`
-        : `Direct order by ${
-            order.user.customerDetails?.firmName || order.user.name
-          }`,
-    }));
+            }`,
+      };
+    });
 
     res.json({ orders: formattedOrders });
   } catch (error) {
-    res.status(500).json({ error: "Error fetching order history" });
+    console.error("Error fetching order history:", error);
+    res.status(500).json({ error: "Error fetching order history", details: error.message });
   }
 };
+
+
 
 exports.checkIn = async (req, res) => {
   try {
