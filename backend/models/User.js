@@ -1,85 +1,87 @@
-// models/User.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema({
-  // Common fields for all roles
   name: {
     type: String,
-    required: true
+    required: true,
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   password: {
     type: String,
-    required: true
+    required: true,
   },
   phoneNumber: {
     type: String,
-    required: true
+    required: true,
   },
   role: {
     type: String,
-    enum: ['admin', 'user', 'reception', 'stock', 'dispatch', 'marketing','miscellaneous'],
-    default: 'user'
+    enum: [
+      "admin",
+      "user",
+      "reception",
+      "stock",
+      "dispatch",
+      "marketing",
+      "miscellaneous",
+    ],
+    default: "user",
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: true,
   },
 
-  // Fields specific to regular users (customers)
   customerDetails: {
     firmName: {
       type: String,
-      required: function() {
-        return this.role === 'user';
-      }
+      required: function () {
+        return this.role === "user";
+      },
     },
     gstNumber: String,
     panNumber: String,
     photo: String,
     address: {
       type: String,
-      required: function() {
-        return this.role === 'user';
-      }
+      required: function () {
+        return this.role === "user";
+      },
     },
     userCode: {
       type: String,
       unique: true,
-      sparse: true // Allows null values and only enforces uniqueness for non-null values
-    }
+      sparse: true,
+    },
   },
 
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) {
     return next();
   }
 
-  
-  
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  
-  // Generate user code only for regular users
-  if (this.role === 'user' && !this.customerDetails.userCode) {
-    this.customerDetails.userCode = 'OPT' + Math.floor(1000 + Math.random() * 9000);
+
+  if (this.role === "user" && !this.customerDetails.userCode) {
+    this.customerDetails.userCode =
+      "OPT" + Math.floor(1000 + Math.random() * 9000);
   }
 });
 
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);
