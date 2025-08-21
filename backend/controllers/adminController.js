@@ -995,27 +995,33 @@ const adminController = {
   // },
 
 
-
-  getAllOrders: async (req, res) => {
+getAllOrders: async (req, res) => {
   try {
-    const { type } = req.query;
+    const { type, priceUpdated } = req.query; 
     let query = {};
 
+    
     if (type && ["Bottle", "Raw Material", "all"].includes(type)) {
       if (type !== "all") {
         query.type = type;
       }
     }
 
+    
+    if (priceUpdated !== undefined) {
+      query.priceUpdated = priceUpdated === "true";
+    }
+
     const orders = await Order.find(query)
       .select(
-        "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount totalAmountWithDelivery priceUpdated userActivityStatus expiresAt"
-      )
+        "orderId firmName gstNumber shippingAddress paymentStatus paymentMethod orderStatus createdAt type totalAmount totalAmountWithDelivery priceUpdated priceUpdateHistory products"
+      ) 
       .populate(
         "user",
         "name email phoneNumber customerDetails.firmName customerDetails.userCode"
       )
-      .populate("products.product", "name type originalPrice discountedPrice")
+      .populate("products.product", "name type originalPrice discountedPrice validFrom validTo") 
+      .populate("priceUpdateHistory.updatedBy", "name role") 
       .sort({ createdAt: -1 });
 
     const groupedOrders = {
@@ -1030,32 +1036,67 @@ const adminController = {
         : groupedOrders[type]
       : orders;
 
-    // Add order status breakdown to summary
-    const statusSummary = {
-      pending: orders.filter((order) => order.orderStatus === "pending").length,
-      preview: orders.filter((order) => order.orderStatus === "preview").length,
-      processing: orders.filter((order) => order.orderStatus === "processing").length,
-      confirmed: orders.filter((order) => order.orderStatus === "confirmed").length,
-      shipped: orders.filter((order) => order.orderStatus === "shipped").length,
-      cancelled: orders.filter((order) => order.orderStatus === "cancelled").length,
-    };
+    
+    const formattedOrders = responseOrders.map((order) => ({
+      orderId: order.orderId,
+      firmName: order.firmName,
+      gstNumber: order.gstNumber,
+      shippingAddress: order.shippingAddress,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      orderStatus: order.orderStatus,
+      createdAt: order.createdAt,
+      type: order.type,
+      totalAmount: order.totalAmount,
+      totalAmountWithDelivery: order.totalAmountWithDelivery,
+      priceUpdated: order.priceUpdated,
+      priceUpdateHistory: order.priceUpdateHistory.map((history) => ({
+        product: history.product,
+        oldPrice: history.oldPrice,
+        newPrice: history.newPrice,
+        updatedBy: history.updatedBy ? {
+          id: history.updatedBy._id,
+          name: history.updatedBy.name,
+          role: history.updatedBy.role,
+        } : null,
+        updatedAt: history.updatedAt,
+      })),
+      products: order.products.map((item) => ({
+        productId: item.product._id,
+        name: item.product.name,
+        type: item.product.type,
+        quantity: item.boxes, 
+        price: item.price, 
+        originalPrice: item.product.originalPrice, 
+        discountedPrice: item.product.discountedPrice, 
+        isOfferValid: item.product.discountedPrice &&
+          item.product.validFrom &&
+          item.product.validTo &&
+          new Date() >= new Date(item.product.validFrom) &&
+          new Date() <= new Date(item.product.validTo),
+      })),
+      user: order.user ? {
+        name: order.user.name,
+        email: order.user.email,
+        phoneNumber: order.user.phoneNumber,
+        firmName: order.user.customerDetails?.firmName,
+        userCode: order.user.customerDetails?.userCode,
+      } : null,
+    }));
 
     res.json({
-      orders: responseOrders,
-      totalOrders: responseOrders.length,
+      orders: formattedOrders,
+      totalOrders: formattedOrders.length,
       summary: {
         totalBottleOrders: groupedOrders["Bottle"].length,
         totalRawMaterialOrders: groupedOrders["Raw Material"].length,
         totalOrders: orders.length,
-        statusSummary, // Include status breakdown
+        totalPriceUpdatedOrders: orders.filter((order) => order.priceUpdated).length,
       },
     });
   } catch (error) {
     console.error("Error in getAllOrders:", error);
-    res.status(500).json({
-      error: "Error fetching orders",
-      details: error.message,
-    });
+    res.status(500).json({ error: "Error fetching orders", details: error.message });
   }
 },
 
