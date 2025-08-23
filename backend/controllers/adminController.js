@@ -795,62 +795,136 @@ const adminController = {
     }
   },
 
-  getPreviewOrders: async (req, res) => {
-    try {
-      const orders = await Order.find({
-        orderStatus: "preview",
-      })
-        .populate(
-          "user",
-          "name phoneNumber customerDetails.firmName customerDetails.userCode"
-        )
-        .populate("products.product")
-        .populate("statusHistory.updatedBy", "name role")
-        .sort({ createdAt: -1 });
-
-      res.json({ orders });
-    } catch (error) {
-      res.status(500).json({ error: "Error fetching preview orders" });
-    }
-  },
-
-  // processPreviewOrder: async (req, res) => {
+  // getPreviewOrders: async (req, res) => {
   //   try {
-  //     const { orderId } = req.params;
-  //     console.log("Processing orderId:", orderId);
+  //     const orders = await Order.find({
+  //       orderStatus: "preview",
+  //     })
+  //       .populate(
+  //         "user",
+  //         "name phoneNumber customerDetails.firmName customerDetails.userCode"
+  //       )
+  //       .populate("products.product")
+  //       .populate("statusHistory.updatedBy", "name role")
+  //       .sort({ createdAt: -1 });
 
-  //     const order = await Order.findById(orderId);
-  //     if (!order) {
-  //       return res.status(400).json({ error: "Order not found" });
-  //     }
-  //     if (order.orderStatus !== "preview") {
-  //       return res.status(400).json({ error: "Invalid preview order status" });
-  //     }
-
-  //     console.log("Order found:", order);
-
-  //     if (!req.user || !req.user._id) {
-  //       return res.status(401).json({ error: "Unauthorized" });
-  //     }
-
-  //     order.userActivityStatus = order.userActivityStatus || "active";
-
-  //     order._updatedBy = req.user._id;
-  //     order.orderStatus = "processing";
-
-  //     await order.save();
-  //     console.log("Order updated to processing:", order);
-
-  //     res.json({ message: "Order moved to processing", order });
+  //     res.json({ orders });
   //   } catch (error) {
-  //     console.error("Error processing order:", error);
-  //     res
-  //       .status(500)
-  //       .json({ error: "Error processing order", details: error.message });
+  //     res.status(500).json({ error: "Error fetching preview orders" });
   //   }
   // },
 
 
+  getPreviewOrders: async (req, res) => {
+  try {
+    const orders = await Order.find({ orderStatus: "preview" })
+      .populate(
+        "user",
+        "name phoneNumber customerDetails.firmName customerDetails.userCode"
+      )
+      .populate("products.product", "name type originalPrice discountedPrice validFrom validTo")
+      .populate("statusHistory.updatedBy", "name role")
+      .sort({ createdAt: -1 });
+
+    // Format orders to include price update information
+    const formattedOrders = await Promise.all(
+      orders.map(async (order) => {
+        let priceChanged = false;
+        const priceUpdateDetails = [];
+
+        // Check each product for price updates
+        const updatedProducts = await Promise.all(
+          order.products.map(async (item) => {
+            const product = item.product; // Populated product
+            const now = new Date();
+            const isOfferValid =
+              product.discountedPrice != null &&
+              product.validFrom &&
+              product.validTo &&
+              now >= new Date(product.validFrom) &&
+              now <= new Date(product.validTo);
+            const currentPrice = isOfferValid
+              ? product.discountedPrice
+              : product.originalPrice;
+
+            // Check if the stored price differs from the current price
+            if (item.price !== currentPrice) {
+              priceChanged = true;
+              priceUpdateDetails.push({
+                product: item.product._id,
+                oldPrice: item.price,
+                newPrice: currentPrice,
+              });
+            }
+
+            return {
+              productId: item.product._id,
+              name: item.product.name,
+              type: item.product.type,
+              boxes: item.boxes,
+              price: item.price, // Stored price
+              currentPrice, // Current price from Product model
+              isOfferValid,
+            };
+          })
+        );
+
+        // Recalculate total amount if prices have changed
+        const totalAmount = updatedProducts.reduce(
+          (sum, item) => sum + item.currentPrice * item.boxes,
+          0
+        );
+        const totalAmountWithDelivery = totalAmount + (order.deliveryCharge || 0);
+
+        return {
+          _id: order._id,
+          orderId: order.orderId,
+          user: order.user
+            ? {
+                name: order.user.name,
+                phoneNumber: order.user.phoneNumber,
+                firmName: order.user.customerDetails?.firmName,
+                userCode: order.user.customerDetails?.userCode,
+              }
+            : null,
+          products: updatedProducts,
+          totalAmount: order.totalAmount, // Stored total
+          currentTotalAmount: totalAmount, // Recalculated total based on current prices
+          totalAmountWithDelivery: order.totalAmountWithDelivery,
+          currentTotalAmountWithDelivery: totalAmountWithDelivery,
+          priceUpdated: order.priceUpdated || priceChanged,
+          priceUpdateDetails: priceChanged ? priceUpdateDetails : undefined,
+          orderStatus: order.orderStatus,
+          paymentStatus: order.paymentStatus,
+          paymentMethod: order.paymentMethod,
+          shippingAddress: order.shippingAddress,
+          firmName: order.firmName,
+          gstNumber: order.gstNumber,
+          createdAt: order.createdAt,
+          statusHistory: order.statusHistory.map((history) => ({
+            status: history.status,
+            updatedBy: history.updatedBy
+              ? { name: history.updatedBy.name, role: history.updatedBy.role }
+              : null,
+            updatedAt: history.updatedAt,
+          })),
+        };
+      })
+    );
+
+    res.json({
+      orders: formattedOrders,
+      totalOrders: formattedOrders.length,
+      summary: {
+        totalPriceUpdatedOrders: formattedOrders.filter((order) => order.priceUpdated).length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching preview orders:", error);
+    res.status(500).json({ error: "Error fetching preview orders", details: error.message });
+  }
+},
+  
   processPreviewOrder: async (req, res) => {
     try {
       const { orderId } = req.params;
