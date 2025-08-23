@@ -820,7 +820,7 @@ const adminController = {
     const orders = await Order.find({ orderStatus: "preview" })
       .populate(
         "user",
-        "name phoneNumber customerDetails.firmName customerDetails.userCode"
+        "name email phoneNumber customerDetails.firmName customerDetails.userCode"
       )
       .populate("products.product", "name type originalPrice discountedPrice validFrom validTo")
       .populate("statusHistory.updatedBy", "name role")
@@ -882,6 +882,7 @@ const adminController = {
           user: order.user
             ? {
                 name: order.user.name,
+                email: order.user.email,
                 phoneNumber: order.user.phoneNumber,
                 firmName: order.user.customerDetails?.firmName,
                 userCode: order.user.customerDetails?.userCode,
